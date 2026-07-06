@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOV GEN X — Live Exoskeleton Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      color: #00ff88;
+      font-family: 'Segoe UI', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #1a1a2e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff4444;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .status-dot.connected { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      padding: 16px;
+    }
+    .card {
+      background: #111118;
+      border: 1px solid #1a1a2e;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #0f0f15;
+    }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { color: #666; font-size: 0.8rem; }
+    .metric-value { font-family: monospace; font-size: 0.9rem; }
+    .bar-container {
+      width: 100%; height: 6px;
+      background: #1a1a2e;
+      border-radius: 3px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    .bar-green { background: #00ff88; }
+    .bar-yellow { background: #ffaa00; }
+    .bar-red { background: #ff4444; }
+    .joint-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .joint {
+      background: #0f0f15;
+      padding: 8px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .joint-name { font-size: 0.7rem; color: #666; }
+    .joint-val { font-size: 0.85rem; margin-top: 2px; }
+    .log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+      color: #888;
+      font-family: monospace;
+    }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid #0f0f15; }
+    .alert { color: #ff4444; }
+    .warn { color: #ffaa00; }
+    .info { color: #00ff88; }
+    #wsStatus { font-size: 0.8rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Ω SOV GEN X — EXOSKELETON LIVE</h1>
+    <div id="wsStatus"><span class="status-dot" id="statusDot"></span>WebSocket: <span id="wsText">disconnected</span></div>
+  </div>
+
+  <div class="grid">
+    <!-- Frame Overview -->
+    <div class="card">
+      <h2>Frame Status</h2>
+      <div class="metric"><span class="metric-label">Frame ID</span><span class="metric-value" id="frameId">--</span></div>
+      <div class="metric"><span class="metric-label">Model</span><span class="metric-value" id="frameModel">--</span></div>
+      <div class="metric"><span class="metric-label">Status</span><span class="metric-value" id="frameStatus">--</span></div>
+      <div class="metric"><span class="metric-label">Wearer</span><span class="metric-value" id="frameWearer">--</span></div>
+      <div class="metric"><span class="metric-label">AEGENTIS Node</span><span class="metric-value" id="frameNode">--</span></div>
+      <div class="metric"><span class="metric-label">Last Heartbeat</span><span class="metric-value" id="frameHeartbeat">--</span></div>
+    </div>
+
+    <!-- Power -->
+    <div class="card">
+      <h2>Power Management</h2>
+      <div class="metric"><span class="metric-label">Battery</span><span class="metric-value" id="batteryPct">--</span></div>
+      <div class="bar-container"><div class="bar-fill bar-green" id="batteryBar" style="width:0%"></div></div>
+      <div class="metric"><span class="metric-label">Remaining</span><span class="metric-value" id="batteryWh">--</span></div>
+      <div class="metric"><span class="metric-label">Voltage</span><span class="metric-value" id="voltage">--</span></div>
+      <div class="metric"><span class="metric-label">Current</span><span class="metric-value" id="current">--</span></div>
+      <div class="metric"><span class="metric-label">Temperature</span><span class="metric-value" id="temp">--</span></div>
+      <div class="metric"><span class="metric-label">Cycles</span><span class="metric-value" id="cycles">--</span></div>
+    </div>
+
+    <!-- Biomechanics -->
+    <div class="card">
+      <h2>Biomechanical Sensors</h2>
+      <div class="metric"><span class="metric-label">Heart Rate</span><span class="metric-value" id="heartRate">--</span></div>
+      <div class="metric"><span class="metric-label">Posture Score</span><span class="metric-value" id="posture">--</span></div>
+      <div class="metric"><span class="metric-label">Gait Phase</span><span class="metric-value" id="gaitPhase">--</span></div>
+      <div class="metric"><span class="metric-label">IMU Accel Magnitude</span><span class="metric-value" id="accelMag">--</span></div>
+    </div>
+
+    <!-- EMG -->
+    <div class="card">
+      <h2>EMG Activation</h2>
+      <div id="emgContainer"></div>
+    </div>
+
+    <!-- Joints -->
+    <div class="card">
+      <h2>Joint Kinematics</h2>
+      <div class="joint-grid" id="jointGrid"></div>
+    </div>
+
+    <!-- Assist Force -->
+    <div class="card">
+      <h2>Assist Force</h2>
+      <div class="metric"><span class="metric-label">Lower Body</span><span class="metric-value" id="assistLower">--</span></div>
+      <div class="bar-container"><div class="bar-fill bar-green" id="lowerBar" style="width:0%"></div></div>
+      <div class="metric"><span class="metric-label">Upper Body</span><span class="metric-value" id="assistUpper">--</span></div>
+      <div class="bar-container"><div class="bar-fill bar-green" id="upperBar" style="width:0%"></div></div>
+    </div>
+
+    <!-- Safety -->
+    <div class="card">
+      <h2>Safety System</h2>
+      <div class="metric"><span class="metric-label">Severity</span><span class="metric-value" id="safetySeverity">NORMAL</span></div>
+      <div class="metric"><span class="metric-label">Flags</span><span class="metric-value" id="safetyFlags">--</span></div>
+      <div class="metric"><span class="metric-label">Emergency Ready</span><span class="metric-value" id="emergencyReady">--</span></div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Event Stream</h2>
+      <div class="log" id="eventLog"></div>
+    </div>
+  </div>
+
+  <script>
+    const WS_URL = 'ws://localhost:8765';
+    let ws = null;
+    let reconnectTimer = null;
+    const logEl = document.getElementById('eventLog');
+    const MAX_LOG = 50;
+
+    function log(msg, cls = 'info') {
+      const div = document.createElement('div');
+      div.className = `log-entry ${cls}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.prepend(div);
+      while (logEl.children.length > MAX_LOG) logEl.lastChild.remove();
+    }
+
+    function setStatus(connected) {
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('wsText');
+      dot.classList.toggle('connected', connected);
+      txt.textContent = connected ? 'connected' : 'disconnected';
+    }
+
+    function updateBattery(pct) {
+      const bar = document.getElementById('batteryBar');
+      bar.style.width = pct + '%';
+      bar.className = 'bar-fill ' + (pct > 30 ? 'bar-green' : pct > 15 ? 'bar-yellow' : 'bar-red');
+    }
+
+    function updateAssist(lower, upper) {
+      const lbar = document.getElementById('lowerBar');
+      const ubar = document.getElementById('upperBar');
+      const lpct = Math.min((lower / 500) * 100, 100);
+      const upct = Math.min((upper / 200) * 100, 100);
+      lbar.style.width = lpct + '%';
+      ubar.style.width = upct + '%';
+      lbar.className = 'bar-fill ' + (lpct > 90 ? 'bar-red' : 'bar-green');
+      ubar.className = 'bar-fill ' + (upct > 90 ? 'bar-red' : 'bar-green');
+    }
+
+    function updateJoints(joints) {
+      const grid = document.getElementById('jointGrid');
+      if (!joints || !joints.length) return;
+      grid.innerHTML = joints.map(j => `
+        <div class="joint">
+          <div class="joint-name">${j.name}</div>
+          <div class="joint-val">${j.angle_deg.toFixed(1)}°</div>
+          <div style="font-size:0.7rem;color:#666">${j.torque_nm.toFixed(1)}Nm</div>
+        </div>
+      `).join('');
+    }
+
+    function updateEMG(emg) {
+      const c = document.getElementById('emgContainer');
+      if (!emg) return;
+      c.innerHTML = Object.entries(emg).map(([k, v]) => {
+        const pct = Math.min(v, 100);
+        const color = pct > 80 ? '#ff4444' : pct > 50 ? '#ffaa00' : '#00ff88';
+        return `
+          <div style="margin:4px 0">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem">
+              <span style="color:#888">${k}</span>
+              <span style="color:${color}">${v.toFixed(1)}%</span>
+            </div>
+            <div class="bar-container" style="height:4px"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function handleMessage(data) {
+      if (data.type === 'event' || data.type === 'alert') {
+        const src = data.source || 'unknown';
+        const cat = data.category || 'general';
+        const tl = data.threat_level || 0;
+        log(`${src}/${cat} | threat=${tl}`, tl >= 7 ? 'alert' : tl >= 4 ? 'warn' : 'info');
+
+        // If exo data payload exists, unpack it
+        const p = data.data || {};
+        if (p.frame_id) document.getElementById('frameId').textContent = p.frame_id;
+        if (p.model) document.getElementById('frameModel').textContent = p.model;
+        if (p.status) document.getElementById('frameStatus').textContent = p.status;
+        if (p.wearer_id) document.getElementById('frameWearer').textContent = p.wearer_id;
+        if (p.aegentis_node) document.getElementById('frameNode').textContent = p.aegentis_node;
+        if (p.last_heartbeat) document.getElementById('frameHeartbeat').textContent = new Date(p.last_heartbeat).toLocaleTimeString();
+
+        if (p.sensors) {
+          const s = p.sensors;
+          if (s.heart_rate_bpm) document.getElementById('heartRate').textContent = s.heart_rate_bpm + ' BPM';
+          if (s.posture_score) document.getElementById('posture').textContent = s.posture_score.toFixed(1) + '/100';
+          if (s.gait_phase) document.getElementById('gaitPhase').textContent = s.gait_phase;
+          if (s.imu) {
+            const imu = s.imu;
+            const mag = Math.sqrt(imu.accel_x**2 + imu.accel_y**2 + imu.accel_z**2).toFixed(2);
+            document.getElementById('accelMag').textContent = mag + ' G';
+          }
+          updateEMG(s.emg);
+        }
+
+        if (p.joints) updateJoints(p.joints);
+
+        if (typeof p.total_assist_lower_n === 'number') {
+          document.getElementById('assistLower').textContent = p.total_assist_lower_n.toFixed(1) + 'N';
+          document.getElementById('assistUpper').textContent = (p.total_assist_upper_n || 0).toFixed(1) + 'N';
+          updateAssist(p.total_assist_lower_n, p.total_assist_upper_n || 0);
+        }
+
+        if (p.power_cells && p.power_cells.length) {
+          const totalCap = p.power_cells.reduce((a, c) => a + (c.capacity_wh || 0), 0);
+          const totalRem = p.power_cells.reduce((a, c) => a + (c.remaining_wh || 0), 0);
+          const pct = totalCap > 0 ? (totalRem / totalCap) * 100 : 0;
+          document.getElementById('batteryPct').textContent = pct.toFixed(1) + '%';
+          document.getElementById('batteryWh').textContent = totalRem.toFixed(1) + ' / ' + totalCap.toFixed(1) + ' Wh';
+          updateBattery(pct);
+          const first = p.power_cells[0];
+          document.getElementById('voltage').textContent = (first.voltage_v || 0).toFixed(1) + 'V';
+          document.getElementById('current').textContent = (first.current_a || 0).toFixed(1) + 'A';
+          document.getElementById('temp').textContent = (first.temperature_c || 0).toFixed(1) + '°C';
+          document.getElementById('cycles').textContent = (first.cycle_count || 0).toString();
+        }
+
+        if (p.safety) {
+          const sev = p.safety.severity || 'NORMAL';
+          const flags = (p.safety.flags || []).join(', ') || 'none';
+          const sevEl = document.getElementById('safetySeverity');
+          sevEl.textContent = sev;
+          sevEl.style.color = sev === 'CRITICAL' ? '#ff4444' : sev === 'HIGH' ? '#ffaa00' : '#00ff88';
+          document.getElementById('safetyFlags').textContent = flags;
+          document.getElementById('emergencyReady').textContent = p.safety.emergency_release ? 'ARMED' : 'SAFE';
+          document.getElementById('emergencyReady').style.color = p.safety.emergency_release ? '#ff4444' : '#00ff88';
+        }
+      }
+    }
+
+    function connect() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => { setStatus(true); log('WebSocket connected'); ws.send(JSON.stringify({action:'ping'})); };
+      ws.onmessage = (e) => { try { handleMessage(JSON.parse(e.data)); } catch(err) { log('Parse error: ' + err.message, 'warn'); } };
+      ws.onclose = () => { setStatus(false); log('WebSocket closed — reconnecting...', 'warn'); reconnectTimer = setTimeout(connect, 3000); };
+      ws.onerror = (e) => { log('WebSocket error', 'alert'); };
+    }
+
+    connect();
+  </script>
+</body>
+</html>

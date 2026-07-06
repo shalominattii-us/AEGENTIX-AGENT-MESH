@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ω SOVEREIGN WORKSTATION — AEG-576414</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      92% { opacity: 1; }
+      93% { opacity: 0.3; }
+      94% { opacity: 1; }
+    }
+    
+    body {
+      background: #000;
+      color: #00ff88;
+      font-family: 'Consolas', 'Courier New', monospace;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      cursor: none;
+    }
+    
+    /* CRT overlay */
+    .crt::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    
+    .scanline {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(0, 255, 136, 0.1);
+      animation: scanline 4s linear infinite;
+      z-index: 9998;
+      pointer-events: none;
+    }
+    
+    .workstation {
+      display: grid;
+      grid-template-columns: 280px 1fr 280px;
+      grid-template-rows: 48px 1fr 120px;
+      height: 100vh;
+      gap: 2px;
+      background: #0a0a0f;
+    }
+    
+    .panel {
+      background: #0d0d15;
+      border: 1px solid #1a1a2e;
+      padding: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .panel::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 8px; height: 8px;
+      border-top: 2px solid #00ff88;
+      border-right: 2px solid #00ff88;
+    }
+    
+    .panel::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 8px; height: 8px;
+      border-bottom: 2px solid #00ff88;
+      border-left: 2px solid #00ff88;
+    }
+    
+    .header-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: #080810;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    
+    .header-bar h1 {
+      font-size: 1rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      animation: flicker 5s infinite;
+    }
+    
+    .header-meta {
+      display: flex;
+      gap: 24px;
+      font-size: 0.75rem;
+      color: #666;
+    }
+    
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .meta-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #ff4444;
+    }
+    
+    .meta-dot.ok { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+    .meta-dot.warn { background: #ffaa00; }
+    
+    .left-col {
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .center-col {
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 2px;
+    }
+    
+    .right-col {
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .footer-bar {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      display: flex;
+      gap: 2px;
+      overflow: hidden;
+    }
+    
+    .footer-panel {
+      flex: 1;
+      background: #0d0d15;
+      border: 1px solid #1a1a2e;
+      padding: 10px;
+    }
+    
+    h2 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #888;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #1a1a2e;
+    }
+    
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 0.75rem;
+      border-bottom: 1px solid #0f0f15;
+    }
+    
+    .metric-row:last-child { border-bottom: none; }
+    .label { color: #666; }
+    .value { font-family: monospace; }
+    .value.ok { color: #00ff88; }
+    .value.warn { color: #ffaa00; }
+    .value.alert { color: #ff4444; animation: pulse 1s infinite; }
+    
+    .bar-track {
+      width: 100%; height: 3px;
+      background: #1a1a2e;
+      margin-top: 2px;
+      overflow: hidden;
+    }
+    
+    .bar-fill {
+      height: 100%;
+      transition: width 0.5s ease;
+    }
+    
+    .log-stream {
+      font-size: 0.65rem;
+      color: #888;
+      overflow-y: auto;
+      max-height: calc(100% - 30px);
+    }
+    
+    .log-entry {
+      padding: 1px 0;
+      border-bottom: 1px solid #0a0a0f;
+    }
+    
+    .log-entry.alert { color: #ff4444; }
+    .log-entry.warn { color: #ffaa00; }
+    .log-entry.info { color: #00ff88; }
+    
+    .big-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      text-align: center;
+      margin: 10px 0;
+    }
+    
+    .sub-number {
+      font-size: 0.75rem;
+      text-align: center;
+      color: #666;
+    }
+    
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    .mini-card {
+      background: #0a0a0f;
+      border: 1px solid #1a1a2e;
+      padding: 8px;
+      text-align: center;
+    }
+    
+    .mini-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    
+    .mini-label {
+      font-size: 0.6rem;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .visualizer {
+      flex: 1;
+      background: #0a0a0f;
+      border: 1px solid #1a1a2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .visualizer canvas {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .time-display {
+      font-size: 2rem;
+      text-align: center;
+      letter-spacing: 4px;
+      margin: 10px 0;
+    }
+    
+    .date-display {
+      font-size: 0.8rem;
+      text-align: center;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .node-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+    
+    .node-badge {
+      background: #0a0a0f;
+      border: 1px solid #1a1a2e;
+      padding: 4px 6px;
+      font-size: 0.6rem;
+      text-align: center;
+    }
+    
+    .node-badge.active {
+      border-color: #00ff88;
+      background: rgba(0, 255, 136, 0.05);
+    }
+    
+    .node-badge.dead {
+      border-color: #ff4444;
+      background: rgba(255, 68, 68, 0.05);
+      color: #ff4444;
+    }
+  </style>
+</head>
+<body class="crt">
+  <div class="scanline"></div>
+  
+  <div class="workstation">
+    <!-- HEADER -->
+    <div class="header-bar">
+      <h1>Ω SOVEREIGN WORKSTATION</h1>
+      <div class="header-meta">
+        <div class="meta-item"><span class="meta-dot" id="ollamaDot"></span>OLLAMA</div>
+        <div class="meta-item"><span class="meta-dot" id="brainDot"></span>BRAIN</div>
+        <div class="meta-item"><span class="meta-dot" id="exoDot"></span>EXO</div>
+        <div class="meta-item"><span class="meta-dot" id="uavDot"></span>UAV</div>
+        <div class="meta-item"><span class="meta-dot" id="streamDot"></span>STREAM</div>
+        <div class="meta-item" id="nodeId">AEG-576414</div>
+        <div class="meta-item" id="clockMeta">--:--:--</div>
+      </div>
+    </div>
+    
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+      <div class="panel">
+        <h2>System Resources</h2>
+        <div class="metric-row">
+          <span class="label">RAM</span>
+          <span class="value" id="ramValue">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="ramBar" style="width:0%;background:#00ff88"></div></div>
+        
+        <div class="metric-row">
+          <span class="label">CPU</span>
+          <span class="value" id="cpuValue">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="cpuBar" style="width:0%;background:#00ff88"></div></div>
+        
+        <div class="metric-row">
+          <span class="label">Disk</span>
+          <span class="value" id="diskValue">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="diskBar" style="width:0%;background:#00ff88"></div></div>
+        
+        <div class="metric-row">
+          <span class="label">Temp</span>
+          <span class="value" id="tempValue">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Uptime</span>
+          <span class="value" id="uptimeValue">--</span>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>AEGENTIS Nodes</h2>
+        <div class="node-grid" id="nodeGrid">
+          <div class="node-badge active">RECON</div>
+          <div class="node-badge active">INFIL</div>
+          <div class="node-badge active">EXFIL</div>
+          <div class="node-badge active">DEFEND</div>
+          <div class="node-badge active">OFFEND</div>
+          <div class="node-badge" id="ghostNode">GHOST</div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>FAA Status</h2>
+        <div class="metric-row">
+          <span class="label">Pilot</span>
+          <span class="value ok" id="pilotStatus">VALID</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">LAANC</span>
+          <span class="value ok" id="laancStatus">ACTIVE</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Remote ID</span>
+          <span class="value ok" id="ridStatus">BROADCAST</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Geofence</span>
+          <span class="value ok" id="geoStatus">COMPLIANT</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- CENTER COLUMN -->
+    <div class="center-col">
+      <div class="visualizer">
+        <canvas id="mainVis"></canvas>
+      </div>
+      
+      <div class="panel" style="height: 180px;">
+        <h2>Active Operations</h2>
+        <div class="grid-2x2">
+          <div class="mini-card">
+            <div class="mini-value" id="activeDrones">0</div>
+            <div class="mini-label">DRONES ACTIVE</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-value" id="exoStatusCenter">--</div>
+            <div class="mini-label">EXOSKELETON</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-value" id="threatLevel">0</div>
+            <div class="mini-label">THREAT LEVEL</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-value" id="streamRate">0</div>
+            <div class="mini-label">STREAMS/SEC</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+      <div class="panel">
+        <div class="time-display" id="mainClock">00:00:00</div>
+        <div class="date-display" id="mainDate">JAN 01 2026</div>
+      </div>
+      
+      <div class="panel">
+        <h2>Exoskeleton</h2>
+        <div class="metric-row">
+          <span class="label">Frame</span>
+          <span class="value" id="exoFrame">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Assist Lower</span>
+          <span class="value" id="exoLower">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="exoLowerBar" style="width:0%;background:#00ff88"></div></div>
+        <div class="metric-row">
+          <span class="label">Assist Upper</span>
+          <span class="value" id="exoUpper">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="exoUpperBar" style="width:0%;background:#00ff88"></div></div>
+        <div class="metric-row">
+          <span class="label">Battery</span>
+          <span class="value" id="exoBatt">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Safety</span>
+          <span class="value ok" id="exoSafety">NORMAL</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Gait</span>
+          <span class="value" id="exoGait">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Heart Rate</span>
+          <span class="value" id="exoHR">--</span>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>UAV Fleet</h2>
+        <div class="metric-row">
+          <span class="label">Swarm Size</span>
+          <span class="value" id="swarmSize">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Leader</span>
+          <span class="value" id="swarmLeader">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Mission</span>
+          <span class="value" id="swarmMission">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Avg Battery</span>
+          <span class="value" id="swarmBatt">--</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- FOOTER -->
+    <div class="footer-bar">
+      <div class="footer-panel" style="flex: 2;">
+        <h2>Event Stream</h2>
+        <div class="log-stream" id="footerLog"></div>
+      </div>
+      <div class="footer-panel">
+        <h2>Ollama Status</h2>
+        <div class="metric-row">
+          <span class="label">Model</span>
+          <span class="value" id="ollamaModel">llama3.2:3b</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Tokens/sec</span>
+          <span class="value" id="ollamaTps">~27</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">Queue</span>
+          <span class="value" id="ollamaQueue">0</span>
+        </div>
+      </div>
+      <div class="footer-panel">
+        <h2>Network</h2>
+        <div class="metric-row">
+          <span class="label">Groq API</span>
+          <span class="value warn" id="groqStatus">DEAD</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">GitHub</span>
+          <span class="value ok" id="githubStatus">ONLINE</span>
+        </div>
+        <div class="metric-row">
+          <span class="label">WebSocket</span>
+          <span class="value" id="wsStatusFooter">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WS_URL = 'ws://localhost:8765';
+    let ws = null;
+    let reconnectTimer = null;
+    let streamCount = 0;
+    let lastStreamTime = Date.now();
+    
+    const MAX_LOG = 30;
+    const footerLog = document.getElementById('footerLog');
+    
+    function log(msg, cls = 'info') {
+      const div = document.createElement('div');
+      div.className = `log-entry ${cls}`;
+      div.textContent = `[${new Date().toLocaleTimeString('en-US',{hour12:false})}] ${msg}`;
+      footerLog.prepend(div);
+      while (footerLog.children.length > MAX_LOG) footerLog.lastChild.remove();
+    }
+    
+    function setDot(id, ok) {
+      const dot = document.getElementById(id);
+      if (dot) dot.className = 'meta-dot ' + (ok ? 'ok' : '');
+    }
+    
+    function setValue(id, val, alert = false, warn = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      el.className = 'value ' + (alert ? 'alert' : warn ? 'warn' : 'ok');
+    }
+    
+    function setBar(id, pct, thresholds = [70, 90]) {
+      const bar = document.getElementById(id);
+      if (!bar) return;
+      bar.style.width = Math.min(pct, 100) + '%';
+      bar.style.background = pct < thresholds[0] ? '#00ff88' : pct < thresholds[1] ? '#ffaa00' : '#ff4444';
+    }
+    
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('mainClock').textContent = now.toLocaleTimeString('en-US', {hour12: false});
+      document.getElementById('mainDate').textContent = now.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'}).toUpperCase();
+      document.getElementById('clockMeta').textContent = now.toLocaleTimeString('en-US', {hour12: false});
+    }
+    
+    setInterval(updateClock, 1000);
+    updateClock();
+    
+    // Visualizer canvas
+    const canvas = document.getElementById('mainVis');
+    const ctx = canvas.getContext('2d');
+    let visData = [];
+    
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    function drawVis() {
+      const w = canvas.width, h = canvas.height;
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, w, h);
+      
+      // Grid
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < w; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+      
+      // Data lines
+      if (visData.length > 1) {
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        const step = w / (visData.length - 1);
+        visData.forEach((v, i) => {
+          const y = h - (v / 100) * h;
+          if (i === 0) ctx.moveTo(0, y);
+          else ctx.lineTo(i * step, y);
+        });
+        ctx.stroke();
+        
+        // Glow under line
+        ctx.fillStyle = 'rgba(0, 255, 136, 0.05)';
+        ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+      }
+      
+      // Center crosshair
+      ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+      
+      requestAnimationFrame(drawVis);
+    }
+    drawVis();
+    
+    // Simulated system metrics (replace with real data)
+    async function fetchSystemMetrics() {
+      try {
+        // In production, call a local endpoint or read from GOVERNOR logs
+        // For now, simulate based on known constraints
+        const ramFree = Math.random() * 15 + 2; // 2-17%
+        const cpu = Math.random() * 40 + 10; // 10-50%
+        const diskUsed = (607 - 500) / 607 * 100; // ~17% used
+        
+        setValue('ramValue', ramFree.toFixed(1) + '% FREE', ramFree < 5, ramFree < 10);
+        setBar('ramBar', 100 - ramFree);
+        
+        setValue('cpuValue', cpu.toFixed(0) + '%');
+        setBar('cpuBar', cpu);
+        
+        setValue('diskValue', (100 - diskUsed).toFixed(0) + '% FREE');
+        setBar('diskBar', diskUsed);
+        
+        setValue('tempValue', (55 + Math.random() * 20).toFixed(0) + '°C');
+        
+        const uptime = Math.floor(performance.now() / 1000);
+        const h = Math.floor(uptime / 3600);
+        const m = Math.floor((uptime % 3600) / 60);
+        const s = uptime % 60;
+        setValue('uptimeValue', `${h}h ${m}m ${s}s`);
+      } catch (e) {}
+    }
+    setInterval(fetchSystemMetrics, 3000);
+    fetchSystemMetrics();
+    
+    function handleMessage(data) {
+      streamCount++;
+      const now = Date.now();
+      const rate = Math.round(streamCount / ((now - lastStreamTime) / 1000));
+      document.getElementById('streamRate').textContent = rate;
+      
+      if (data.type === 'event' || data.type === 'alert') {
+        const src = data.source || 'unknown';
+        const cat = data.category || 'general';
+        const tl = data.threat_level || 0;
+        const cls = tl >= 7 ? 'alert' : tl >= 4 ? 'warn' : 'info';
+        log(`${src}/${cat} threat=${tl}`, cls);
+        
+        const p = data.data || {};
+        
+        // EXO data
+        if (p.frame_id) {
+          setValue('exoFrame', p.frame_id);
+          setValue('exoStatusCenter', p.status || 'ACTIVE');
+          document.getElementById('ghostNode').className = 'node-badge active';
+        }
+        if (typeof p.total_assist_lower_n === 'number') {
+          setValue('exoLower', p.total_assist_lower_n.toFixed(1) + 'N');
+          setBar('exoLowerBar', (p.total_assist_lower_n / 500) * 100);
+        }
+        if (typeof p.total_assist_upper_n === 'number') {
+          setValue('exoUpper', p.total_assist_upper_n.toFixed(1) + 'N');
+          setBar('exoUpperBar', (p.total_assist_upper_n / 200) * 100);
+        }
+        if (p.power_cells && p.power_cells.length) {
+          const cap = p.power_cells.reduce((a, c) => a + (c.capacity_wh || 0), 0);
+          const rem = p.power_cells.reduce((a, c) => a + (c.remaining_wh || 0), 0);
+          const pct = cap > 0 ? (rem / cap) * 100 : 0;
+          setValue('exoBatt', pct.toFixed(1) + '%', pct < 15, pct < 30);
+        }
+        if (p.sensors) {
+          setValue('exoGait', p.sensors.gait_phase || '--');
+          setValue('exoHR', (p.sensors.heart_rate_bpm || 0) + ' BPM');
+          if (p.safety) {
+            const sev = p.safety.severity || 'NORMAL';
+            setValue('exoSafety', sev, sev === 'CRITICAL', sev === 'HIGH');
+          }
+          // Add to visualizer
+          if (p.sensors.emg) {
+            const avgEmg = Object.values(p.sensors.emg).reduce((a, v) => a + v, 0) / 8;
+            visData.push(avgEmg);
+            if (visData.length > 100) visData.shift();
+          }
+        }
+        
+        // UAV data
+        if (p.drone_id) {
+          setValue('activeDrones', '1+');
+          setDot('uavDot', true);
+        }
+        if (p.swarm_size) {
+          setValue('swarmSize', p.swarm_size);
+          setValue('activeDrones', p.swarm_size);
+        }
+        if (p.leader_id) setValue('swarmLeader', p.leader_id);
+        if (p.mission_id) setValue('swarmMission', p.mission_id);
+        
+        // System status from source
+        if (src === 'governor') setDot('brainDot', true);
+        if (src === 'ollama') setDot('ollamaDot', true);
+        if (src === 'exo_controller') setDot('exoDot', true);
+        if (src === 'stream_handler') setDot('streamDot', true);
+      }
+      
+      if (data.type === 'alert') {
+        document.getElementById('threatLevel').textContent = data.threat_level || 9;
+        document.getElementById('threatLevel').style.color = '#ff4444';
+      }
+    }
+    
+    function connect() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => {
+        setDot('streamDot', true);
+        setValue('wsStatusFooter', 'ONLINE', false, false);
+        log('WebSocket connected');
+        ws.send(JSON.stringify({action: 'ping'}));
+      };
+      ws.onmessage = (e) => {
+        try { handleMessage(JSON.parse(e.data)); }
+        catch(err) { log('Parse error: ' + err.message, 'warn'); }
+      };
+      ws.onclose = () => {
+        setDot('streamDot', false);
+        setValue('wsStatusFooter', 'OFFLINE', false, true);
+        log('WebSocket closed — reconnecting...', 'warn');
+        reconnectTimer = setTimeout(connect, 5000);
+      };
+      ws.onerror = () => {
+        setValue('wsStatusFooter', 'ERROR', true);
+        log('WebSocket error', 'alert');
+      };
+    }
+    
+    connect();
+    
+    // Hide cursor after 3s inactivity for immersion
+    let cursorTimer;
+    document.addEventListener('mousemove', () => {
+      document.body.style.cursor = 'default';
+      clearTimeout(cursorTimer);
+      cursorTimer = setTimeout(() => { document.body.style.cursor = 'none'; }, 3000);
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Exit immersive mode
+        if (document.fullscreenElement) document.exitFullscreen();
+      }
+      if (e.key === 'f' && e.ctrlKey) {
+        e.preventDefault();
+        document.documentElement.requestFullscreen();
+      }
+    });
+    
+    // Auto-enter fullscreen on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

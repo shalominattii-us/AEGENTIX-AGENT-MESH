@@ -1,0 +1,66 @@
+﻿{
+    "components":  {
+                       "modules":  [
+                                       {
+                                           "sha256":  "3AE0E8ECBD0A566D7C630A81B0354DF5625F331169F460230214B20631447558",
+                                           "name":  "dashboard_feed.py",
+                                           "size":  3927
+                                       },
+                                       {
+                                           "sha256":  "33535CA25C7B09CD4DFDE999967A22B28F9D6355E6998D5CFC6CF729EC74811D",
+                                           "name":  "dfir_engine.py",
+                                           "size":  5787
+                                       },
+                                       {
+                                           "sha256":  "7FD9AC7295A5294E3F62D0545CD459D0CFD04C6F97DC0D5F5F0A6D460DED2B8A",
+                                           "name":  "osint_engine.py",
+                                           "size":  4916
+                                       },
+                                       {
+                                           "sha256":  "DE7B976D045F40C6780245DE02EA6152C118621AECEC293EFDFCB7BE870DA4FC",
+                                           "name":  "stream_handler.py",
+                                           "size":  5669
+                                       }
+                                   ],
+                       "core":  [
+                                    {
+                                        "sha256":  "ACCBECE4019677D4775E1B83F3DBFA851EB57939EB6528A6C484C15C2854274C",
+                                        "name":  "AEGENTIS_BRAIN.py",
+                                        "size":  1968
+                                    },
+                                    {
+                                        "sha256":  "7FE6F17CC5F9135066A0B5BB092E1CAEC9873CC6AD8A0EC99B0C0D1EA5B035E6",
+                                        "name":  "bundlemit.py",
+                                        "size":  2419
+                                    },
+                                    {
+                                        "sha256":  "264C127D1ED8CE254A9171DE933C6AC4FADB29F2EBBC26242FEC20D9F21E6145",
+                                        "name":  "explorer_heal.py",
+                                        "size":  2285
+                                    },
+                                    {
+                                        "sha256":  "DC94E5EC6853799FEA5B186AD8E6205E486D352F64BF07D23484020619CAA10E",
+                                        "name":  "GOVERNOR.py",
+                                        "size":  8122
+                                    },
+                                    {
+                                        "sha256":  "5E05625C30D54FE4C3BD2AF38C019C0BF1CD96EB9969751F0D7A3DA7F0D5D701",
+                                        "name":  "log_rotate.py",
+                                        "size":  1764
+                                    },
+                                    {
+                                        "sha256":  "EDFA13D42388AF2C83F2323ADB5F485803A0F8987338A8B1CFC374C3F08793D0",
+                                        "name":  "memory_opt.py",
+                                        "size":  2285
+                                    },
+                                    {
+                                        "sha256":  "CAC03C7B3451D2B8F1F0084C123D8527E0E66196530AF7B82CF97514390FC4C6",
+                                        "name":  "scheduler.ps1",
+                                        "size":  2817
+                                    }
+                                ]
+                   },
+    "timestamp":  "2026-05-12T22:46:55Z",
+    "build":  "AEG-576414-v3.0",
+    "node":  "ROG-Ally-X"
+}

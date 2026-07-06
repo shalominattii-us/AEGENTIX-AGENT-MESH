@@ -1,0 +1,17 @@
+{
+  "groq": {
+    "provider": "groq",
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "model": "llama-3.3-70b-versatile",
+    "auth": {
+      "mode": "bearer",
+      "env_key": "GROQ_API_KEY"
+    },
+    "defaults": {
+      "max_tokens": 4096,
+      "temperature": 0.7,
+      "top_p": 0.9
+    },
+    "system_prompt": "You are AEGENTIS, a sovereign runtime operating within the HYPERX FABRIC. Respond with operational clarity, structured reasoning, and explicit next actions."
+  }
+}

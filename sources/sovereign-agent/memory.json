@@ -1,0 +1,32 @@
+{
+  "project": "SOVEREIGN Off-Axis Diplomacy Markets",
+  "version": "1.0.0",
+  "build_id": "SOV-OADM-001",
+  "principal": "shalominattii-us",
+  "esc_issuer": "rB2fKokBsnHCoFWLqZ89dqp2VCbVkKoY2k",
+  "treasury_type": "TSL",
+  "base_currencies": [
+    "ESC",
+    "XRP"
+  ],
+  "custody_term": "Destiny",
+  "custody_phrase": "Caretaking for a Sovereign's Destinies",
+  "no_eth": true,
+  "cabinet_count": 8,
+  "venue_count": 8,
+  "null_timelock_hours": 72,
+  "repos": [
+    "SOVEREIGN",
+    "UNIVERSAL-LIFE-LIBERATION-TOOL",
+    "APOSTLE-AGENTIC-AGRICULTURE",
+    "AEGIS-X-SECURITY-SUITE",
+    "EAGLE-SHIELD-GOLDEN-DOME",
+    "PENTAGI-OSINT-ARMADA",
+    "SOVEREIGN-CROSS-CHAIN-CUSTODY",
+    "CBDC-MANTIS-PROTOCOL"
+  ],
+  "gitnexus_enabled": true,
+  "unredact_lens_enabled": true,
+  "light_filter_default": 0.8,
+  "highlight_color_default": "red"
+}

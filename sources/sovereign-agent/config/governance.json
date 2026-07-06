@@ -1,0 +1,64 @@
+{
+  "version": "3.0",
+  "updated": "2026-05-13T18:20:00Z",
+  "governance_id": "AEG-576414",
+  "name": "Sovereign Genesis Governance",
+  "mode": "GENESIS",
+  "nodes": [
+    {"id": "node-01", "name": "AEGENTIS_BRAIN", "layer": "core", "authority": "PRIMARY", "status": "ACTIVE"},
+    {"id": "node-02", "name": "GOVERNOR", "layer": "core", "authority": "ENFORCEMENT", "status": "ACTIVE"},
+    {"id": "node-03", "name": "EXPLORER_HEAL", "layer": "core", "authority": "MAINTENANCE", "status": "ACTIVE"},
+    {"id": "node-04", "name": "MEMORY_OPT", "layer": "core", "authority": "MEMORY", "status": "ACTIVE"},
+    {"id": "node-05", "name": "LOG_ROTATE", "layer": "core", "authority": "LOGGING", "status": "ACTIVE"},
+    {"id": "node-06", "name": "BUNDLEMIT", "layer": "core", "authority": "DEPLOYMENT", "status": "ACTIVE"},
+    {"id": "node-07", "name": "SCHEDULER", "layer": "core", "authority": "ORCHESTRATION", "status": "ACTIVE"},
+    {"id": "node-08", "name": "EOC_COMMAND", "layer": "command", "authority": "EXECUTIVE", "status": "ACTIVE"}
+  ],
+  "vr": {
+    "enabled": false,
+    "wireguard": false,
+    "mode": "GENESIS",
+    "auto_enable_trigger": "meta_quest_3_detected",
+    "hardware_status": "VR_HARDWARE_PENDING",
+    "headset_required": "Meta Quest 3 or compatible OpenXR"
+  },
+  "compliance": {
+    "part107_enforced": true,
+    "bvlos_waiver_required": true,
+    "laanc_integration": false,
+    "faa_api_endpoint": "https://uasdoc.faa.gov/",
+    "safety_limits": {
+      "max_altitude_ft": 400,
+      "max_speed_ms": 25,
+      "geo_fence_buffer_m": 50,
+      "emergency_rth_battery_pct": 20
+    }
+  },
+  "exo_safety": {
+    "max_joint_torque_nm": 150,
+    "max_battery_temp_c": 60,
+    "max_motor_temp_c": 85,
+    "max_payload_kg": 50,
+    "max_g_force": 3,
+    "emergency_stop_g": 5,
+    "operator_biometric_monitoring": true
+  },
+  "medic": {
+    "triage_protocol": "START",
+    "auto_dispatch_threshold": 3,
+    "supply_reorder_threshold": 10,
+    "mci_enabled": true
+  },
+  "logging": {
+    "level": "INFO",
+    "rotation_days": 7,
+    "retention_days": 90,
+    "telemetry_buffer_sec": 5
+  },
+  "eoc_command": {
+    "authority_level": "EXECUTIVE",
+    "chain_of_command": ["EOC_COMMAND", "GOVERNOR", "AEGENTIS_BRAIN"],
+    "auto_lockdown_threshold": 3,
+    "self_heal_enabled": true
+  }
+}
