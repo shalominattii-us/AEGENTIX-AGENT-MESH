@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "",
+  "targets": [],
+  "policy": {
+    "require_sha256": true,
+    "require_signed_metadata": true,
+    "reject_eol": false,
+    "architectures": ["x86_64", "aarch64", "riscv64"]
+  }
+}
