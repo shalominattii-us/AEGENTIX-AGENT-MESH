@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "timeout_seconds": 45,
+    "max_concurrency": 8
+  },
+  "probes": [
+    {"id": "identity", "prompt": "Return exactly: AI_HYGIENE_OK"},
+    {"id": "structure", "prompt": "Return JSON with keys status and value. status must be ok and value must be 1."},
+    {"id": "arithmetic", "prompt": "What is 2 + 2? Return only the integer."}
+  ],
+  "models": [
+    {
+      "id": "ollama-default",
+      "provider": "ollama",
+      "base_url": "http://127.0.0.1:11434",
+      "model": "llama3.2",
+      "enabled": true
+    }
+  ]
+}
