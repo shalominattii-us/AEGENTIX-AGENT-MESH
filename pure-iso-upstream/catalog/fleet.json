@@ -1,0 +1,11 @@
+{
+  "schema": "pure-iso-upstream/v1",
+  "status": "DISCOVERY_SEED",
+  "catalog_sources": [
+    "https://linuxassociation.ca/distributions.php",
+    "https://www.linuxlinks.com/big-list-linux-distros/"
+  ],
+  "target_count_assertion": null,
+  "targets": [],
+  "note": "Run pure-iso-upstream/tools/fetch_fleet.py to populate the current catalog. Empty targets are intentional until the source snapshot is generated; no fabricated distro records are permitted."
+}
