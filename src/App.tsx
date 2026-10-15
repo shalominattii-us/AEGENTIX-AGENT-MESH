@@ -782,6 +782,9 @@ export default function App() {
       {isOutwardPortalMode ? (
         centerTab === 'PORTAL_LANDING' ? (
           <PublicLandingPortal
+            onLaunchOriginNode={() => setCenterTab('SOVEREIGN_ORIGIN_NODE')}
+            onLaunchZeroCap={() => setCenterTab('ZERO_CAP_FLYWHEEL')}
+            onLaunchSkillMatrix={() => setCenterTab('NEXUS_REGISTRY')}
             onLaunchMedicalApp={() => setCenterTab('HEALTHCARE_NET')}
             onLaunchPinnacleApp={() => setCenterTab('PINNACLE_DERIVATIVES')}
             onLaunchJarvisBuilder={() => setCenterTab('JARVIS_BUILDER')}
