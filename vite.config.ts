@@ -12,6 +12,15 @@ export default defineConfig(() => {
       },
     },
     server: {
+      allowedHosts: true as true,
+      // Proxy backend API requests from Vite dev server (:5173) to Express server (:3000)
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:3000',
+          changeOrigin: true,
+          ws: true,
+        },
+      },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
+import { MinimalHeader } from './components/MinimalHeader';
 import { AgentSidebar } from './components/AgentSidebar';
 import { PortfolioOverview } from './components/PortfolioOverview';
 import { MarketResearcher } from './components/MarketResearcher';
@@ -49,6 +50,13 @@ import { DesktopDeviceMappingSuite } from './components/DesktopDeviceMappingSuit
 import { KolibriOfflineSuite } from './components/KolibriOfflineSuite';
 import { CyberGymProgressionSuite } from './components/CyberGymProgressionSuite';
 import { PortfolioGrowthPlanSuite } from './components/PortfolioGrowthPlanSuite';
+import { PinnacleDerivativesSuite } from './components/PinnacleDerivativesSuite';
+import { PublicLandingPortal } from './components/PublicLandingPortal';
+import { JarvisAppBuilderStudio } from './components/JarvisAppBuilderStudio';
+import { GrokAuditModal } from './components/GrokAuditModal';
+import { NexusSkillRegistrySuite } from './components/NexusSkillRegistrySuite';
+import { ZeroCapitalFlywheelSuite } from './components/ZeroCapitalFlywheelSuite';
+import { SovereignOriginNodeSuite } from './components/SovereignOriginNodeSuite';
 import { 
   WalletBalances, 
   MarketAsset, 
@@ -108,11 +116,30 @@ export default function App() {
   const [exchangeBridges, setExchangeBridges] = useState<ExchangeBridge[]>([]);
 
   // Agent Configurations
-  const [isAutopilot, setIsAutopilot] = useState(false);
+  const [isAutopilot, setIsAutopilotState] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('aegentix_autopilot');
+      return stored !== null ? stored === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const setIsAutopilot = (active: boolean | ((prev: boolean) => boolean)) => {
+    setIsAutopilotState((prev) => {
+      const next = typeof active === 'function' ? active(prev) : active;
+      try {
+        localStorage.setItem('aegentix_autopilot', String(next));
+        fetch('/api/autonomous/continuous/toggle', { method: 'POST' }).catch(() => {});
+      } catch {}
+      return next;
+    });
+  };
+
   const [strategy, setStrategy] = useState('arbitrage_balanced');
   const [maxSlippage, setMaxSlippage] = useState(0.25);
   const [gasLimitGwei, setGasLimitGwei] = useState(25);
-  const [cycleIntervalSeconds, setCycleIntervalSeconds] = useState(30);
+  const [cycleIntervalSeconds, setCycleIntervalSeconds] = useState(15);
   const [gasPriceGwei, setGasPriceGwei] = useState(18.4);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Just now');
   const [llmStatus, setLlmStatus] = useState<LLMStatus | null>(null);
@@ -121,6 +148,7 @@ export default function App() {
   const [isExpandedCanvas, setIsExpandedCanvas] = useState(false);
   const [isTocModalOpen, setIsTocModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isGrokModalOpen, setIsGrokModalOpen] = useState(false);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isHardwareModalOpen, setIsHardwareModalOpen] = useState(false);
@@ -138,9 +166,164 @@ export default function App() {
   const [isExecutingTrade, setIsExecutingTrade] = useState(false);
   const [isStressTesting, setIsStressTesting] = useState(false);
   const [isPulsingHeartbeat, setIsPulsingHeartbeat] = useState(false);
-  const [oodaState, setOodaState] = useState<OodaTelemetryState | null>(null);
-  const [centerTab, setCenterTab] = useState<'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM'>('LIVE_TELEMETRY');
   const [alertBanner, setAlertBanner] = useState<{ message: string; type: 'ALERT' | 'SUCCESS' | 'INFO' } | null>(null);
+  const [oodaState, setOodaState] = useState<OodaTelemetryState | null>(null);
+
+  const resolveTabFromInput = (input?: string | null): any => {
+    if (!input) return null;
+    const clean = input.replace(/^[/#]+/, '').trim().toLowerCase();
+    if (!clean) return null;
+    const aliasMap: Record<string, string> = {
+      'medical': 'HEALTHCARE_NET',
+      'healthcare': 'HEALTHCARE_NET',
+      'healthcare_net': 'HEALTHCARE_NET',
+      'recruiter': 'HEALTHCARE_NET',
+      'faithlines': 'HEALTHCARE_NET',
+      'pinnacle': 'PINNACLE_DERIVATIVES',
+      'pinnacle_derivatives': 'PINNACLE_DERIVATIVES',
+      'derivatives': 'PINNACLE_DERIVATIVES',
+      'showcase': 'PINNACLE_DERIVATIVES',
+      'ledger': 'LEDGER',
+      'sovereign_ledger': 'LEDGER',
+      'trading': 'TRADING_COMMAND',
+      'trading_command': 'TRADING_COMMAND',
+      'exchanges': 'TRADING_COMMAND',
+      'telemetry': 'LIVE_TELEMETRY',
+      'live_telemetry': 'LIVE_TELEMETRY',
+      'aegentis': 'AEGENTIS_OS',
+      'aegentis_os': 'AEGENTIS_OS',
+      'halo': 'HALO_CE_VISOR',
+      'halo_ce_visor': 'HALO_CE_VISOR',
+      'lounge': 'HALO_CE_VISOR',
+      'spacebunny': 'SPACE_BUNNY_ALPHA',
+      'space_bunny_alpha': 'SPACE_BUNNY_ALPHA',
+      'herdr': 'HERDR',
+      'rog': 'ROG_CREATOR_SYSTEM',
+      'rog_creator_system': 'ROG_CREATOR_SYSTEM',
+      'devices': 'DEVICE_SANDBOX_MAPPING',
+      'device_sandbox_mapping': 'DEVICE_SANDBOX_MAPPING',
+      'cybergym': 'CYBERGYM_PROGRESSION',
+      'cybergym_progression': 'CYBERGYM_PROGRESSION',
+      'growth': 'PORTFOLIO_GROWTH_PLAN',
+      'portfolio_growth_plan': 'PORTFOLIO_GROWTH_PLAN',
+      'dag': 'DAG_FEDERAL_NODE_STATUS',
+      'dag_federal_node_status': 'DAG_FEDERAL_NODE_STATUS',
+      'forge': 'GITHUB_FORGE',
+      'github_forge': 'GITHUB_FORGE',
+      'sovereign_portal': 'SOVEREIGN_PORTAL',
+      'command': 'SOVEREIGN_COMMAND',
+      'sovereign_command': 'SOVEREIGN_COMMAND',
+      'kolibri': 'KOLIBRI_PLATFORM',
+      'kolibri_platform': 'KOLIBRI_PLATFORM',
+      'ooda': 'OODA_LOOP',
+      'ooda_loop': 'OODA_LOOP',
+      'mesh': 'AGENT_MESH',
+      'agent_mesh': 'AGENT_MESH',
+      'symphony': 'SYMPHONY',
+      'researcher': 'RESEARCHER',
+      'all_feeds': 'ALL_FEEDS',
+      'risk': 'RISK_DASHBOARD',
+      'risk_dashboard': 'RISK_DASHBOARD',
+      'cyberdeck': 'AEGENTIS_OS',
+      'operator': 'AEGENTIS_OS',
+      'dashboard': 'AEGENTIS_OS',
+      'dev': 'AEGENTIS_OS',
+      'landing': 'PORTAL_LANDING',
+      'home': 'PORTAL_LANDING',
+      'welcome': 'PORTAL_LANDING',
+      'portal': 'PORTAL_LANDING',
+      'public': 'PORTAL_LANDING',
+      'builder': 'JARVIS_BUILDER',
+      'studio': 'JARVIS_BUILDER',
+      'jarvis': 'JARVIS_BUILDER',
+      'app_builder': 'JARVIS_BUILDER',
+      'nexus': 'NEXUS_REGISTRY',
+      'skills': 'NEXUS_REGISTRY',
+      'nexus_registry': 'NEXUS_REGISTRY',
+      'zerocap': 'ZERO_CAP_FLYWHEEL',
+      'zero_cap': 'ZERO_CAP_FLYWHEEL',
+      'flywheel': 'ZERO_CAP_FLYWHEEL',
+      'gastank': 'ZERO_CAP_FLYWHEEL',
+      'gas': 'ZERO_CAP_FLYWHEEL',
+      'zero_capital': 'ZERO_CAP_FLYWHEEL',
+      'origin': 'SOVEREIGN_ORIGIN_NODE',
+      'origin_node': 'SOVEREIGN_ORIGIN_NODE',
+      'origin-node': 'SOVEREIGN_ORIGIN_NODE',
+      'sovereign_origin': 'SOVEREIGN_ORIGIN_NODE',
+      'sovereign_node': 'SOVEREIGN_ORIGIN_NODE',
+      'agent_os': 'SOVEREIGN_ORIGIN_NODE',
+      'agentos': 'SOVEREIGN_ORIGIN_NODE',
+    };
+    if (aliasMap[clean]) return aliasMap[clean];
+    const upper = clean.toUpperCase();
+    return upper;
+  };
+
+  const getInitialTab = () => {
+    try {
+      const fromPath = resolveTabFromInput(window.location.pathname);
+      if (fromPath) return fromPath;
+      const fromHash = resolveTabFromInput(window.location.hash);
+      if (fromHash) return fromHash;
+      const stored = localStorage.getItem('aegentix_active_tab');
+      if (stored) {
+        const fromStored = resolveTabFromInput(stored);
+        if (fromStored) return fromStored;
+      }
+    } catch {}
+    return 'PORTAL_LANDING';
+  };
+
+  const [centerTab, setCenterTabState] = useState<'PORTAL_LANDING' | 'JARVIS_BUILDER' | 'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'PINNACLE_DERIVATIVES' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM' | 'NEXUS_REGISTRY' | 'ZERO_CAP_FLYWHEEL' | 'SOVEREIGN_ORIGIN_NODE'>(getInitialTab);
+
+  const setCenterTab = (tab: any) => {
+    setCenterTabState(tab);
+    try {
+      localStorage.setItem('aegentix_active_tab', tab);
+      const hashStr = '#' + String(tab).toLowerCase();
+      if (window.location.hash !== hashStr) {
+        window.history.pushState(null, '', hashStr);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleNavigationChange = () => {
+      const fromHash = resolveTabFromInput(window.location.hash);
+      const fromPath = resolveTabFromInput(window.location.pathname);
+      const target = fromHash || fromPath;
+      if (target) {
+        setCenterTabState(target as any);
+      }
+    };
+    window.addEventListener('hashchange', handleNavigationChange);
+    window.addEventListener('popstate', handleNavigationChange);
+
+    // Prevent any anchor clicks from reloading the app
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest('a');
+      if (target && target.getAttribute('href')) {
+        const href = target.getAttribute('href')!;
+        if (
+          href.startsWith('#') ||
+          (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/api') && !href.startsWith('/downloads'))
+        ) {
+          const tab = resolveTabFromInput(href);
+          if (tab) {
+            e.preventDefault();
+            setCenterTab(tab);
+          }
+        }
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+
+    return () => {
+      window.removeEventListener('hashchange', handleNavigationChange);
+      window.removeEventListener('popstate', handleNavigationChange);
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, []);
 
   const [connectedWallet, setConnectedWallet] = useState<{ address: string; type: string } | null>({
     address: '0x71C568a29A88F3c37e97123984FaA628469E849F',
@@ -173,6 +356,45 @@ export default function App() {
 
   useEffect(() => {
     fetchState();
+
+    // Real-Time Nonstop Continuous Telemetry Stream
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/telemetry/stream');
+      es.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'CONTINUOUS_AUTONOMOUS_TICK' || payload.type === 'NAV_TELEMETRY_TICK') {
+            if (payload.currentNav) {
+              setBalances((prev) => ({
+                ...prev,
+                totalUsd: payload.currentNav,
+                dailyPnlUsd: payload.dailyPnlUsd ?? prev.dailyPnlUsd,
+                cexUsd: payload.cexUsd ?? prev.cexUsd,
+                dexUsd: payload.dexUsd ?? prev.dexUsd,
+              }));
+              setLastSyncTime(new Date().toLocaleTimeString());
+            }
+            if (payload.type === 'CONTINUOUS_AUTONOMOUS_TICK') {
+              setThoughtLogs((prev) => [
+                {
+                  id: `log-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  timestamp: new Date().toLocaleTimeString(),
+                  stage: 'EXECUTE',
+                  content: `[Nonstop Autopilot] Captured +$${payload.latestAlpha} USD on ${payload.targetPair} (Spread: ${payload.spreadPct}%). Block #${payload.blockHeight}.`,
+                  level: 'INFO'
+                },
+                ...prev.slice(0, 50)
+              ]);
+            }
+          }
+        } catch {}
+      };
+    } catch {}
+
+    return () => {
+      if (es) es.close();
+    };
   }, []);
 
   // Autonomous Heartbeat Trigger (OODA Step)
@@ -421,28 +643,43 @@ export default function App() {
     setPendingHardwareTrade(null);
   };
 
+  const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE'].includes(centerTab);
+
   return (
     <div className="min-h-screen bg-[#080B10] text-slate-200 flex flex-col font-mono selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Top Header */}
-      <Header
-        isAutopilot={isAutopilot}
-        onToggleAutopilot={() => setIsAutopilot(!isAutopilot)}
-        onOpenWalletModal={() => setIsWalletModalOpen(true)}
-        onOpenPromptModal={() => setIsPromptModalOpen(true)}
-        onOpenTocModal={() => setIsTocModalOpen(true)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
-        onTriggerStressTest={handleStressTest}
-        isStressTesting={isStressTesting}
-        connectedWallet={connectedWallet}
-        gasPriceGwei={gasPriceGwei}
-        lastSyncTime={lastSyncTime}
-        llmStatus={llmStatus}
-        isExpandedCanvas={isExpandedCanvas}
-        onToggleExpandedCanvas={() => setIsExpandedCanvas(!isExpandedCanvas)}
-        onOpenSpaceBunny={() => setCenterTab('SPACE_BUNNY_ALPHA')}
-        onOpenDeviceMapping={() => setCenterTab('DEVICE_SANDBOX_MAPPING')}
-        onOpenLounge={() => setCenterTab('HALO_CE_VISOR')}
-      />
+      {/* Dynamic Header: Minimalist Editorial Header in Portal / Origin Mode vs Technical Header in Cyberdeck */}
+      {isOutwardPortalMode ? (
+        <MinimalHeader
+          currentTab={centerTab}
+          onSelectTab={(tab) => setCenterTab(tab)}
+          gasPriceGwei={gasPriceGwei}
+          gasTankUsd={520.15}
+        />
+      ) : (
+        <Header
+          isAutopilot={isAutopilot}
+          onToggleAutopilot={() => setIsAutopilot(!isAutopilot)}
+          onOpenWalletModal={() => setIsWalletModalOpen(true)}
+          onOpenPromptModal={() => setIsPromptModalOpen(true)}
+          onOpenTocModal={() => setIsTocModalOpen(true)}
+          onOpenExportModal={() => setIsExportModalOpen(true)}
+          onTriggerStressTest={handleStressTest}
+          isStressTesting={isStressTesting}
+          connectedWallet={connectedWallet}
+          gasPriceGwei={gasPriceGwei}
+          lastSyncTime={lastSyncTime}
+          llmStatus={llmStatus}
+          isExpandedCanvas={isExpandedCanvas}
+          onToggleExpandedCanvas={() => setIsExpandedCanvas(!isExpandedCanvas)}
+          onOpenSpaceBunny={() => setCenterTab('SPACE_BUNNY_ALPHA')}
+          onOpenDeviceMapping={() => setCenterTab('DEVICE_SANDBOX_MAPPING')}
+          onOpenLounge={() => setCenterTab('HALO_CE_VISOR')}
+          onOpenMedical={() => setCenterTab('HEALTHCARE_NET')}
+          onOpenPinnacle={() => setCenterTab('PINNACLE_DERIVATIVES')}
+          onOpenLedger={() => setCenterTab('LEDGER')}
+          onOpenTrading={() => setCenterTab('TRADING_COMMAND')}
+        />
+      )}
 
       {/* Alert Notification Banner */}
       {alertBanner && (
@@ -470,9 +707,153 @@ export default function App() {
         </div>
       )}
 
-      {/* Main 3-Column Dashboard Body */}
-      <main className="flex-1 p-3 sm:p-5 max-w-[1720px] w-full mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      {/* Secondary Cyberdeck Utility Bar - only rendered inside Operator Cyberdeck */}
+      {!isOutwardPortalMode && (
+        <div className="bg-[#0B0F17] border-b border-slate-800/80 px-4 sm:px-6 py-2.5 sticky top-0 z-30 shadow-lg backdrop-blur-md">
+          <div className="max-w-[1720px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Left: Outward Portal Apps Navigation */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 hidden lg:inline">MODES:</span>
+
+              <button
+                onClick={() => setCenterTab('PORTAL_LANDING')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 cursor-pointer ${
+                  centerTab === 'PORTAL_LANDING'
+                    ? 'bg-blue-500/25 text-blue-200 border-blue-500/60 shadow-sm shadow-blue-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border-slate-800'
+                }`}
+              >
+                <span>🌐</span>
+                <span>Public Landing</span>
+              </button>
+
+              <button
+                onClick={() => setCenterTab('HEALTHCARE_NET')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 cursor-pointer ${
+                  centerTab === 'HEALTHCARE_NET'
+                    ? 'bg-rose-500/25 text-rose-200 border-rose-500/60 shadow-sm shadow-rose-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border-slate-800'
+                }`}
+              >
+                <span>🩺</span>
+                <span>Medical</span>
+              </button>
+
+              <button
+                onClick={() => setCenterTab('TRADING_COMMAND')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 cursor-pointer ${
+                  centerTab === 'TRADING_COMMAND'
+                    ? 'bg-emerald-500/25 text-emerald-200 border-emerald-500/60 shadow-sm shadow-emerald-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border-slate-800'
+                }`}
+              >
+                <span>📈</span>
+                <span>Exchanges</span>
+              </button>
+
+              <button
+                onClick={() => setCenterTab('SOVEREIGN_ORIGIN_NODE')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shrink-0 cursor-pointer ${
+                  centerTab === 'SOVEREIGN_ORIGIN_NODE'
+                    ? 'bg-indigo-500/25 text-indigo-200 border-indigo-500/60 shadow-sm shadow-indigo-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border-slate-800'
+                }`}
+              >
+                <span>👑</span>
+                <span>Origin Node</span>
+              </button>
+            </div>
+
+            {/* Right: Operator Mode */}
+            <div className="flex items-center gap-2 self-end md:self-auto shrink-0 font-mono">
+              <button
+                onClick={() => setCenterTab('SOVEREIGN_ORIGIN_NODE')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer bg-slate-900 text-slate-300 hover:text-white border-slate-800"
+              >
+                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Return to Origin</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Viewport: Outward Portal Presentation Mode vs Operator Cyberdeck Mode */}
+      {isOutwardPortalMode ? (
+        centerTab === 'PORTAL_LANDING' ? (
+          <PublicLandingPortal
+            onLaunchMedicalApp={() => setCenterTab('HEALTHCARE_NET')}
+            onLaunchPinnacleApp={() => setCenterTab('PINNACLE_DERIVATIVES')}
+            onLaunchJarvisBuilder={() => setCenterTab('JARVIS_BUILDER')}
+            onLaunchTradingCommand={() => setCenterTab('TRADING_COMMAND')}
+            onOpenLedger={() => setCenterTab('LEDGER')}
+            onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+          />
+        ) : (
+          <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+            {/* TAB CONTENT: Jarvis App Studio (Visual Workflow Builder) */}
+            {centerTab === 'JARVIS_BUILDER' && (
+              <JarvisAppBuilderStudio
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onDeployApp={(deployedAppName) => {
+                  setAlertBanner({ message: `Custom App "${deployedAppName}" deployed to portal!`, type: 'SUCCESS' });
+                }}
+              />
+            )}
+
+            {/* TAB CONTENT: Sovereign Healthcare Network (HIPAA-TSL Decoupled Web & API) */}
+            {centerTab === 'HEALTHCARE_NET' && (
+              <SovereignHealthcareView
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Pinnacle Derivatives (Public Facing B2B & Institutional Gateway) */}
+            {centerTab === 'PINNACLE_DERIVATIVES' && (
+              <PinnacleDerivativesSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Institutional Trading Command (Runbook, Playbooks, Signals & Quant Engine) */}
+            {centerTab === 'TRADING_COMMAND' && (
+              <InstitutionalTradingSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onOpenOmniCyberDex={() => setCenterTab('OMNICYBERDEX')}
+                onOpenGrowthPlan={() => setCenterTab('PORTFOLIO_GROWTH_PLAN')}
+              />
+            )}
+
+            {/* TAB CONTENT: Ledger */}
+            {centerTab === 'LEDGER' && (
+              <TransactionLedger transactions={transactions} />
+            )}
+
+            {/* TAB CONTENT: Nexus Skill Registry & NRCP Console */}
+            {centerTab === 'NEXUS_REGISTRY' && (
+              <NexusSkillRegistrySuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type: type === 'ERROR' ? 'ALERT' : type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Zero-Capital Self-Funding Flywheel & Autonomous Gas Tank */}
+            {centerTab === 'ZERO_CAP_FLYWHEEL' && (
+              <ZeroCapitalFlywheelSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Sovereign Origin Node & Multi-Runtime Mesh */}
+            {centerTab === 'SOVEREIGN_ORIGIN_NODE' && (
+              <SovereignOriginNodeSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+          </main>
+        )
+      ) : (
+        <main className="flex-1 p-3 sm:p-5 max-w-[1720px] w-full mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           {/* LEFT COLUMN: Controls, Bridges, Compliance (3 cols on 12-col grid) */}
           {!isExpandedCanvas && (
             <div className="lg:col-span-3">
@@ -789,6 +1170,13 @@ export default function App() {
               />
             )}
 
+            {/* TAB CONTENT: Pinnacle Derivatives (Public Facing B2B & Institutional Gateway) */}
+            {centerTab === 'PINNACLE_DERIVATIVES' && (
+              <PinnacleDerivativesSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
             {/* TAB CONTENT: Institutional Trading Command (Runbook, Playbooks, Signals & Quant Engine) */}
             {centerTab === 'TRADING_COMMAND' && (
               <InstitutionalTradingSuite
@@ -865,6 +1253,27 @@ export default function App() {
               />
             )}
 
+            {/* TAB CONTENT: Nexus Skill Registry & NRCP Console */}
+            {centerTab === 'NEXUS_REGISTRY' && (
+              <NexusSkillRegistrySuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type: type === 'ERROR' ? 'ALERT' : type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Zero-Capital Self-Funding Flywheel & Autonomous Gas Tank */}
+            {centerTab === 'ZERO_CAP_FLYWHEEL' && (
+              <ZeroCapitalFlywheelSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Sovereign Origin Node & Multi-Runtime Mesh */}
+            {centerTab === 'SOVEREIGN_ORIGIN_NODE' && (
+              <SovereignOriginNodeSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
             {/* Show Ledger Summary under Top Signals if desired */}
             {centerTab === 'TOP_SIGNALS' && (
               <TransactionLedger transactions={transactions.slice(0, 5)} />
@@ -883,6 +1292,7 @@ export default function App() {
           )}
         </div>
       </main>
+    )}
 
       {/* Interactive Modals */}
       <PromptTemplateModal
@@ -930,6 +1340,13 @@ export default function App() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         onOpenGitHubForge={() => setCenterTab('GITHUB_FORGE')}
+      />
+
+      {/* Grok (xAI) Production Auditor & Assistant Modal */}
+      <GrokAuditModal
+        isOpen={isGrokModalOpen}
+        onClose={() => setIsGrokModalOpen(false)}
+        onNotify={(msg, type) => setAlertBanner({ message: msg, type: type === 'ERROR' ? 'ALERT' : type })}
       />
     </div>
   );

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aegentix Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="assistant-container">
+    <!-- Header (Draggable) -->
+    <header class="drag-header">
+      <div class="brand">
+        <span class="status-dot"></span>
+        <span class="brand-text">AEGENTIX // INTELLIGENCE</span>
+      </div>
+      <div class="controls no-drag">
+        <button id="clearBtn" class="icon-btn" title="Clear Conversation Memory">🗑️</button>
+        <button id="muteBtn" class="icon-btn" title="Toggle Voice Speech Output">🔊</button>
+        <button id="hideBtn" class="icon-btn" title="Minimize (Ctrl+Shift+Space)">✕</button>
+      </div>
+    </header>
+
+    <!-- Cortana Glowing Orb / Voice Visualizer -->
+    <div class="orb-section">
+      <div class="halo-ring"></div>
+      <div class="orb" id="voiceOrb" title="Click to Speak or Hold Space">
+        <div class="inner-core"></div>
+      </div>
+      <div class="state-label" id="stateLabel">Ready • Speak or Type</div>
+      <div class="waveform" id="waveform">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </div>
+    </div>
+
+    <!-- Quick Action Chips -->
+    <div class="chips-container no-drag">
+      <button class="chip" data-cmd="What is the current WMON valuation and APR?">WMON Price</button>
+      <button class="chip" data-cmd="Evaluate multi-cloud clusters and mesh latency">Clusters</button>
+      <button class="chip" data-cmd="How should we manage liquidity during volatility?">Rebalance</button>
+    </div>
+
+    <!-- Interactive Conversational Dialogue Feed -->
+    <div class="chat-feed no-drag" id="chatFeed">
+      <div class="msg-turn bot-turn">
+        <div class="bot-badge">AE</div>
+        <div class="msg-bubble">
+          <p class="bubble-text">
+            Greetings, Operator. I am Aegentix, your executive intelligence partner. All 29 exchange streams and multi-cloud clusters are live. How can I assist you?
+          </p>
+          <div class="bubble-meta">
+            <span class="provider-pill">Aegentix Sovereign OS</span>
+            <span class="msg-time" id="initialTime">Live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Input & Mic -->
+    <div class="input-bar no-drag">
+      <input 
+        type="text" 
+        id="queryInput" 
+        placeholder="Talk with Aegentix (or press Enter)..." 
+        autocomplete="off"
+      />
+      <button id="micBtn" class="mic-button" title="Speak to Aegentix">
+        <span class="mic-icon">🎙️</span>
+      </button>
+      <button id="sendBtn" class="send-button" title="Send message">
+        <span>➤</span>
+      </button>
+    </div>
+  </div>
+
+  <script src="assistant.js"></script>
+</body>
+</html>

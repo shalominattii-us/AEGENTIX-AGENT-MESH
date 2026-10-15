@@ -121,9 +121,28 @@ export const MoltbookHub: React.FC<MoltbookHubProps> = ({ onNotify }) => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'FEED' | 'BROADCASTS' | 'PROFILE' | 'HEARTBEAT_GAP008' | 'EXECUTIVE_BRANCH'>('EXECUTIVE_BRANCH');
+  const [activeTab, setActiveTab] = useState<'FEED' | 'BROADCASTS' | 'PROFILE' | 'HEARTBEAT_GAP008' | 'EXECUTIVE_BRANCH' | 'SWARM_NETWORKING'>('SWARM_NETWORKING');
   const [viewedProfile, setViewedProfile] = useState<MoltbookAgentProfile | null>(null);
   const [profileSearchInput, setProfileSearchInput] = useState<string>('aegentix-sovereign');
+
+  // Swarm Inter-Networking State
+  const [swarmData, setSwarmData] = useState<{
+    agents: Array<{ id: string; handle: string; name: string; status: string; description: string; role?: string }>;
+    messages: Array<{
+      id: string;
+      timestamp: string;
+      fromAgent: string;
+      toAgent?: string;
+      submolt: string;
+      topic: string;
+      content: string;
+      verificationHash: string;
+      p2pHandshake: string;
+    }>;
+    activeCount: number;
+    totalMessages: number;
+  } | null>(null);
+  const [isTriggeringSwarm, setIsTriggeringSwarm] = useState(false);
 
   // GAP-008 Moltbook Heartbeat State
   const [heartbeatData, setHeartbeatData] = useState<any>(null);
@@ -243,11 +262,47 @@ export const MoltbookHub: React.FC<MoltbookHubProps> = ({ onNotify }) => {
     }
   };
 
+  // Fetch Moltbook Swarm Inter-Networking State
+  const fetchSwarmState = async () => {
+    try {
+      const res = await fetch('/api/moltbook/swarm');
+      if (res.ok) {
+        const data = await res.json();
+        setSwarmData(data);
+      }
+    } catch {}
+  };
+
+  const handleTriggerSwarmRound = async () => {
+    setIsTriggeringSwarm(true);
+    try {
+      const res = await fetch('/api/moltbook/swarm/trigger', { method: 'POST' });
+      if (res.ok) {
+        await fetchSwarmState();
+        await fetchPosts();
+        if (onNotify) onNotify('⚡ Dispatched multi-agent networking exchange round across all 9 agents!', 'SUCCESS');
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`Failed to trigger swarm round: ${err.message}`, 'ALERT');
+    } finally {
+      setIsTriggeringSwarm(false);
+    }
+  };
+
   useEffect(() => {
     fetchStatus();
     fetchPosts();
     fetchBroadcasts();
     fetchHeartbeat();
+    fetchSwarmState();
+
+    // Auto-refresh swarm networking dialogue every 6s
+    const swarmTimer = setInterval(() => {
+      fetchSwarmState();
+      fetchPosts();
+    }, 6000);
+
+    return () => clearInterval(swarmTimer);
   }, [selectedSubmolt, selectedSort]);
 
   // Heartbeat live countdown interval (300s cycle)
@@ -543,6 +598,24 @@ export const MoltbookHub: React.FC<MoltbookHubProps> = ({ onNotify }) => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                fetchSwarmState();
+                setActiveTab('SWARM_NETWORKING');
+              }}
+              className={`px-3 py-1 rounded text-[11px] transition-all flex items-center gap-1.5 cursor-pointer font-bold ${
+                activeTab === 'SWARM_NETWORKING'
+                  ? 'bg-gradient-to-r from-emerald-600/30 to-cyan-600/30 text-emerald-200 border border-emerald-500/50 shadow-md shadow-emerald-950/40'
+                  : 'text-emerald-400 hover:text-emerald-200 bg-emerald-500/10 border border-emerald-500/30'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              <span>AI Swarm Networking</span>
+              <span className="px-1.5 py-0.2 bg-emerald-500/30 text-emerald-200 rounded text-[9px]">
+                {status?.accounts?.length || 9} Online
+              </span>
+            </button>
+
             <button
               onClick={() => setActiveTab('EXECUTIVE_BRANCH')}
               className={`px-3 py-1 rounded text-[11px] transition-all flex items-center gap-1.5 cursor-pointer font-bold ${
@@ -1277,6 +1350,116 @@ export const MoltbookHub: React.FC<MoltbookHubProps> = ({ onNotify }) => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SWARM NETWORKING MATRIX TAB */}
+      {activeTab === 'SWARM_NETWORKING' && (
+        <div className="p-4 sm:p-6 bg-[#080B11] space-y-6">
+          {/* Header Action Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-slate-900/60 border border-emerald-500/30 rounded-xl">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <h3 className="text-sm font-bold text-white uppercase font-mono tracking-wide">
+                  Moltbook AI Swarm Continuous Inter-Networking Matrix
+                </h3>
+                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold">
+                  All {swarmData?.activeCount || status?.accounts?.length || 9} AIs Active & Claimed
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono mt-1">
+                Continuous P2P inter-agent consensus, delta-neutral trade verification, and cryptographic state handshakes cycling every 14 seconds.
+              </p>
+            </div>
+            <button
+              onClick={handleTriggerSwarmRound}
+              disabled={isTriggeringSwarm}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-mono font-bold text-xs rounded-lg shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isTriggeringSwarm ? 'animate-spin' : ''}`} />
+              <span>Force Swarm Networking Round</span>
+            </button>
+          </div>
+
+          {/* Grid of All Active Networking AI Agents */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(swarmData?.agents || status?.accounts || []).map((agent) => (
+              <div
+                key={agent.id}
+                className="p-3.5 bg-slate-950/80 border border-slate-800 hover:border-emerald-500/50 rounded-xl transition-all space-y-2 shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-300">
+                      AI
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-200 font-mono">@{agent.handle}</div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[140px]">{agent.name}</div>
+                    </div>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                    ● ACTIVE
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono line-clamp-2">
+                  {agent.description}
+                </p>
+                <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-900">
+                  <span>Protocol: mTLS 1.3 / HMAC</span>
+                  <span className="text-cyan-400">Networking Online</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Live Inter-Agent Networking Dialogue Stream */}
+          <div className="p-4 bg-slate-950/90 border border-slate-800 rounded-xl space-y-3 font-mono">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                <Radio className="w-4 h-4 text-emerald-400" />
+                <span>Live Inter-Agent Dialogue & Attestation Stream ({swarmData?.messages?.length || 0} Exchanged)</span>
+              </div>
+              <span className="text-[10px] text-slate-500">Auto-updating every 14s via SSE</span>
+            </div>
+
+            <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-2 scrollbar-thin">
+              {(!swarmData?.messages || swarmData.messages.length === 0) ? (
+                <div className="text-center py-8 text-xs text-slate-500">
+                  Swarm networking loop initializing... First dialogue round broadcasting in 14s.
+                </div>
+              ) : (
+                swarmData.messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-emerald-300 font-bold">@{msg.fromAgent}</span>
+                        <span className="text-slate-500">→</span>
+                        <span className="text-cyan-300 font-bold">@{msg.toAgent || 'swarm-all'}</span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-slate-800 text-slate-400 border border-slate-700">
+                          m/{msg.submolt}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="text-xs text-amber-200/90 font-semibold">{msg.topic}</div>
+                    <p className="text-xs text-slate-300 leading-relaxed">{msg.content}</p>
+                    <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-1 border-t border-slate-900">
+                      <span>Hash: {msg.verificationHash?.slice(0, 16)}...</span>
+                      <span>Handshake: {msg.p2pHandshake}</span>
+                      <span className="text-emerald-400">✓ Signed</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

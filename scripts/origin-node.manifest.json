@@ -1,0 +1,71 @@
+{
+  "$schema": "https://schema.agent-origin.dev/v1/manifest.json",
+  "name": "origin-node",
+  "version": "1.0.0",
+  "description": "Origin node bundling Bastet Agent OS with candidate Agent OS probing.",
+  "license": "Apache-2.0",
+  "generated": "2026-10-15",
+  "root": "C:\\Aegentix",
+  "verified_components": [
+    {
+      "id": "bastet",
+      "name": "Bastet Agent OS",
+      "type": "control-plane",
+      "install": "docker",
+      "image": "yamantaka520/bastet-agent-os:latest",
+      "imageSizeMB": 617.2,
+      "port": 8890,
+      "uiPath": "/ui",
+      "dataVolume": "bastet-data",
+      "status": "running",
+      "api_token": "Kogg_x4l7fEFSuL4gwxlpOzIyfHvwA89X_jaaHcrrFs",
+      "license": "Apache-2.0",
+      "role": "Local-first orchestration, gated workflows, per-run metering, audit log, team memory.",
+      "supportedExecutors": [
+        "hermes",
+        "claude-code",
+        "codex-cli",
+        "grok-build",
+        "google-antigravity",
+        "openai-compatible",
+        "claude-compatible"
+      ],
+      "risk": {
+        "conduidTrustScore": 34,
+        "rating": "low",
+        "staticAnalysis": false,
+        "repoStars": 2,
+        "notes": "No built-in TLS. Reverse proxy required if exposed beyond LAN. Runs autonomous agents with real credentials."
+      }
+    }
+  ],
+  "candidate_components": [
+    { "id": "opencode",           "type": "npm",  "pkg": "opencode-ai" },
+    { "id": "nava",               "type": "pypi", "pkg": "nava-agent" },
+    { "id": "qualixar",           "type": "npm",  "pkg": "qualixar-os" },
+    { "id": "jebat",              "type": "npm",  "pkg": "@nusabyte/jebat" },
+    { "id": "pyagentos",          "type": "pypi", "pkg": "pyagentos" },
+    { "id": "agent-os-community", "type": "pypi", "pkg": "agent-os-kernel" },
+    { "id": "agentos-ts",         "type": "npm",  "pkg": "@framers/agentos" },
+    { "id": "kronos",             "type": "pypi", "pkg": "kronos-agent-os" },
+    { "id": "cloudflare-os",      "type": "npm",  "pkg": "create-cloudflare-os" }
+  ],
+  "endpoints": {
+    "bastet_ui": "http://localhost:8890/ui",
+    "bastet_token": "docker exec bastet cat /data/api_token"
+  },
+  "commands": {
+    "install":   "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1",
+    "probe":     "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1 -Probe",
+    "status":    "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1 -Status",
+    "stop":      "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1 -Stop",
+    "uninstall": "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1 -Uninstall",
+    "purge":     "powershell -ExecutionPolicy Bypass -File Deploy-OriginNode.ps1 -Uninstall -Purge"
+  },
+  "security": {
+    "tlsBuiltIn": false,
+    "reverseProxyRequired": true,
+    "trustLevel": "low",
+    "reviewBeforeUse": true
+  }
+}

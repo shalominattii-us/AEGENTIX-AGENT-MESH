@@ -6,9 +6,6 @@ if (-not (Test-Path $base)) {
     New-Item -ItemType Directory -Path $base | Out-Null
 }
 
-# --- Install Jetpac runtime stub ---
-$jetpac = "$base\jetpac.exe"
-Set-Content -Path $jetpac -Value "# Jetpac runtime stub" -Encoding UTF8
 
 # --- Install Jarvis Core ---
 $jarvisCore = "$base\Jarvis-Core.psm1"
@@ -44,14 +41,11 @@ Import-Module $anti -Force
 
 Write-Host "[AEGENTIX] Modules loaded." -ForegroundColor Green
 
-# --- Start CyberdeckDaemon safely ---
-Write-Host "[AEGENTIX] Starting CyberdeckDaemon..." -ForegroundColor Yellow
-
-Start-Job -Name "CyberdeckDaemon" -ScriptBlock {
-    & "C:\Aegentix\jetpac.exe"
-}
-
-Write-Host "[AEGENTIX] CyberdeckDaemon online." -ForegroundColor Green
+# --- Register Agentic Cyberdeck ---
+Write-Host "[AEGENTIX] Initializing Agentic Cyberdeck..." -ForegroundColor Yellow
+Set-Alias -Name cyberdeck -Value "C:\Aegentix\cyberdeck\cyberdeck.ps1" -Scope Global -Force
+Set-Alias -Name ai -Value "C:\Aegentix\cyberdeck\cyberdeck.ps1" -Scope Global -Force
+Write-Host "[AEGENTIX] Agentic Cyberdeck online. Type 'cyberdeck' or 'ai' to interact with agents." -ForegroundColor Green
 
 # --- Self-healing boot confirmation ---
 Write-Host "`n[AEGENTIX] Sovereign Stack is UP and RUNNING." -ForegroundColor Cyan

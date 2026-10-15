@@ -22,6 +22,10 @@ interface HeaderProps {
   onOpenDeviceMapping?: () => void;
   onOpenSpaceBunny?: () => void;
   onOpenLounge?: () => void;
+  onOpenMedical?: () => void;
+  onOpenPinnacle?: () => void;
+  onOpenLedger?: () => void;
+  onOpenTrading?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +46,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDeviceMapping,
   onOpenSpaceBunny,
   onOpenLounge,
+  onOpenMedical,
+  onOpenPinnacle,
+  onOpenLedger,
+  onOpenTrading,
 }) => {
   return (
     <header className="border-b border-slate-800/80 bg-[#0B0F17]/90 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-6 py-2.5">
@@ -227,6 +235,61 @@ export const Header: React.FC<HeaderProps> = ({
               <Monitor className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Desktop &amp; Device</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            </button>
+          )}
+
+          {/* Direct Quick Launch: Medical Recruiter & FaithLines Ledger */}
+          {onOpenMedical && (
+            <button
+              onClick={onOpenMedical}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500/20 via-pink-500/20 to-purple-500/20 hover:from-rose-500/30 hover:to-purple-500/30 text-rose-300 border border-rose-500/40 rounded text-xs font-mono font-semibold transition-all shadow-sm cursor-pointer"
+              title="Open Medical Recruiter & Sovereign Financial Ledger (FaithLines Custody)"
+            >
+              <span>🩺</span>
+              <span className="hidden sm:inline">Medical Recruiter</span>
+              <span className="sm:hidden">Medical</span>
+              <span className="px-1.5 py-0.2 bg-rose-500/30 text-rose-200 rounded text-[9px] font-bold">Ledger</span>
+            </button>
+          )}
+
+          {/* Direct Quick Launch: Pinnacle Derivatives 25 Industries */}
+          {onOpenPinnacle && (
+            <button
+              onClick={onOpenPinnacle}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-cyan-500/30 text-amber-300 border border-amber-500/40 rounded text-xs font-mono font-semibold transition-all shadow-sm cursor-pointer"
+              title="Open Pinnacle Derivatives LLC & 25-Industry Benchmark Showcase"
+            >
+              <span>🏛️</span>
+              <span className="hidden sm:inline">Pinnacle Derivatives</span>
+              <span className="sm:hidden">Pinnacle</span>
+              <span className="px-1.5 py-0.2 bg-amber-500/30 text-amber-200 rounded text-[9px] font-bold">25 Top</span>
+            </button>
+          )}
+
+          {/* Direct Quick Launch: 29 Institutional Exchanges */}
+          {onOpenTrading && (
+            <button
+              onClick={onOpenTrading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 hover:from-emerald-500/30 hover:to-cyan-500/30 text-emerald-300 border border-emerald-500/40 rounded text-xs font-mono font-semibold transition-all shadow-sm cursor-pointer"
+              title="Open 29 Institutional Grade Exchanges & Federal Transmittance"
+            >
+              <span>📈</span>
+              <span className="hidden sm:inline">29 Exchanges</span>
+              <span className="sm:hidden">Trades</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+          )}
+
+          {/* Direct Quick Launch: Sovereign Ledger */}
+          {onOpenLedger && (
+            <button
+              onClick={onOpenLedger}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 via-indigo-500/20 to-cyan-500/20 hover:from-purple-500/30 hover:to-cyan-500/30 text-purple-300 border border-purple-500/40 rounded text-xs font-mono font-semibold transition-all shadow-sm cursor-pointer"
+              title="Open Sovereign Financial Transaction Ledger"
+            >
+              <span>💼</span>
+              <span className="hidden sm:inline">Sovereign Ledger</span>
+              <span className="sm:hidden">Ledger</span>
             </button>
           )}
 

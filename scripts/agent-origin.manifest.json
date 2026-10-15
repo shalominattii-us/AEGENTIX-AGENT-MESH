@@ -1,0 +1,152 @@
+{
+  "$schema": "https://schema.agent-origin.dev/v1/manifest.json",
+  "name": "agent-origin",
+  "version": "1.0.0",
+  "description": "Origin node bundling Bastet Agent OS, Hermes, OmniRoute, and OpenCode as a single tool.",
+  "license": "Apache-2.0",
+  "platform": ["windows", "linux", "darwin"],
+  "runtime": {
+    "windows": { "shell": "powershell", "minVersion": "5.1" },
+    "linux":   { "shell": "bash", "minVersion": "5.0" },
+    "darwin":  { "shell": "bash", "minVersion": "3.2" }
+  },
+  "components": [
+    {
+      "id": "bastet",
+      "name": "Bastet Agent OS",
+      "type": "control-plane",
+      "install": "docker",
+      "image": "yamantaka520/bastet-agent-os:latest",
+      "imageSizeMB": 617.2,
+      "port": 8890,
+      "uiPath": "/ui",
+      "dataVolume": "bastet-data",
+      "license": "Apache-2.0",
+      "role": "Local-first orchestration, gated workflows, per-run metering, audit log, team memory.",
+      "supportedExecutors": [
+        "hermes",
+        "claude-code",
+        "codex-cli",
+        "grok-build",
+        "google-antigravity",
+        "openai-compatible",
+        "claude-compatible"
+      ],
+      "risk": {
+        "conduidTrustScore": 34,
+        "rating": "low",
+        "staticAnalysis": false,
+        "repoStars": 2,
+        "notes": "No built-in TLS. Put behind a reverse proxy if exposed beyond LAN. Runs autonomous agents with real credentials."
+      }
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Agent",
+      "type": "executor",
+      "install": "host-script",
+      "installUrl": "https://raw.githubusercontent.com/yamantaka520/Bastet-Agent-OS/main/install.sh",
+      "license": "MIT",
+      "role": "Self-improving agent runtime, memory layer, 17 hook events, MCP server mode.",
+      "defaultGatewayPort": 8642,
+      "notes": "Docker image intentionally excludes Hermes CLI because login is interactive. Host install required.",
+      "sdk": {
+        "pluginHooks": 17,
+        "mcpServer": true,
+        "modalBackend": true
+      }
+    },
+    {
+      "id": "omniroute",
+      "name": "OmniRoute",
+      "type": "router",
+      "install": "manual",
+      "license": "unknown",
+      "role": "Local model router. 290 providers, 90 free, 500+ models, automatic failover.",
+      "notes": "Provider counts from Julian Goldie's video. Not independently verified."
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "type": "executor",
+      "install": "npm",
+      "npmPackage": "@opencode-ai/sdk",
+      "globalCliPackage": "opencode-ai",
+      "license": "open-source",
+      "role": "Token-efficient terminal coding agent. Code Mode chains tool calls in one JS round trip.",
+      "requirements": {
+        "minContextWindow": 64000,
+        "breakingFrom1x": true
+      },
+      "installCommands": {
+        "npm": "npm install -g opencode-ai",
+        "script": "curl -fsSL https://opencode.ai/install | bash"
+      },
+      "sdk": {
+        "npm": "@opencode-ai/sdk",
+        "python": "opencode-agent-sdk"
+      }
+    }
+  ],
+  "paths": {
+    "home": "%USERPROFILE%\\agent-origin",
+    "repos": "%USERPROFILE%\\agent-origin\\repos",
+    "logs": "%USERPROFILE%\\agent-origin\\install.log"
+  },
+  "docker": {
+    "containerName": "bastet",
+    "dataVolume": "bastet-data",
+    "repoMount": "%USERPROFILE%\\agent-origin\\repos",
+    "portMapping": "8890:8890",
+    "hostGateway": "host.docker.internal"
+  },
+  "commands": {
+    "install": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1",
+    "probe": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1 -Probe",
+    "status": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1 -Status",
+    "stop": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1 -Stop",
+    "uninstall": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1 -Uninstall",
+    "purge": "powershell -ExecutionPolicy Bypass -File Install-AgentOrigin.ps1 -Uninstall -Purge"
+  },
+  "security": {
+    "tlsBuiltIn": false,
+    "reverseProxyRequired": true,
+    "credentialsHandling": "user-supplied, stored in /data volume inside container",
+    "trustLevel": "low",
+    "reviewBeforeUse": true
+  },
+  "sources": [
+    {
+      "type": "video",
+      "title": "Hermes Agent OS Just Changed AI Agents Forever",
+      "author": "Julian Goldie SEO",
+      "date": "2026-08",
+      "claims": [
+        "three-layer architecture: memory, workspace, orchestration",
+        "24/7 task execution",
+        "shared memory across Claude, Hermes, other agents"
+      ]
+    },
+    {
+      "type": "video",
+      "title": "OmniRoute + OpenCode: 100% FREE AI Coding Setup",
+      "author": "Julian Goldie SEO",
+      "date": "2026-07",
+      "claims": [
+        "OpenCode more token-efficient than Claude Code",
+        "OmniRoute: 290 providers, 90 free, 500+ models",
+        "free models for prototyping, paid for serious work"
+      ]
+    },
+    {
+      "type": "unverified",
+      "title": "Video 3",
+      "status": "content not retrievable"
+    },
+    {
+      "type": "unverified",
+      "title": "Video 4",
+      "status": "content not retrievable"
+    }
+  ]
+}

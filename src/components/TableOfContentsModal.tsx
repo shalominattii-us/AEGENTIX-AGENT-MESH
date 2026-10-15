@@ -37,7 +37,9 @@ import {
   Layers,
   ArrowRight,
   Rocket,
-  Monitor
+  Monitor,
+  Building2,
+  Sparkles
 } from 'lucide-react';
 
 export interface TocItem {
@@ -180,6 +182,15 @@ export const SYSTEM_TOC_ITEMS: TocItem[] = [
     icon: Rocket,
     description: 'Anonymous stealth AI model with 1,000,000 token context window, adjustable reasoning effort, self-verification, and Solana/EVM stealth arbitrage.',
   },
+  {
+    id: 'NEXUS_REGISTRY',
+    name: 'Nexus Skill Registry & NRCP Engine',
+    category: 'Autonomous AI',
+    badge: '2,710+ Skills',
+    badgeColor: 'indigo',
+    icon: Sparkles,
+    description: 'Autonomous skill pack discovery, NRCP command protocol, and dynamic agent ingestion engine for Aegentix, Grok, and Claude.',
+  },
 
   // Trading & DEX
   {
@@ -199,6 +210,15 @@ export const SYSTEM_TOC_ITEMS: TocItem[] = [
     badgeColor: 'amber',
     icon: Trophy,
     description: 'Curated high-confidence arbitrage and delta-neutral trading opportunities scored by return vs. risk profile.',
+  },
+  {
+    id: 'PINNACLE_DERIVATIVES',
+    name: 'Pinnacle Derivatives // Public Gateway',
+    category: 'Trading & DEX',
+    badge: 'Public B2B & Institutional',
+    badgeColor: 'amber',
+    icon: Building2,
+    description: 'Public-facing corporate entity of Aegentix. Custom tailored business models, prospective revenue growth charts, Grade AAA delta-neutral signals, strict US-Federal compliance, and zero-trafficking certification.',
   },
   {
     id: 'TRADING_COMMAND',
