@@ -19,9 +19,9 @@ __pycache__/
 
 # Local Agent OS runtime state & workspaces
 .nava/
-data/
-workspaces/
-memory/
+/data/
+/workspaces/
+/memory/
 nava_audit.jsonl
 server.ts.orig
 server.ts.rej

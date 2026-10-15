@@ -31,6 +31,7 @@ export const MinimalHeader: React.FC<MinimalHeaderProps> = ({
     { id: 'SOVEREIGN_ORIGIN_NODE', label: 'Origin Node', tag: 'Primary Root' },
     { id: 'ZERO_CAP_FLYWHEEL', label: 'Gas Reserves', tag: `$${gasTankUsd.toFixed(0)}` },
     { id: 'NEXUS_REGISTRY', label: 'Skill Matrix', tag: '2,710' },
+    { id: 'ANTI_TRAFFICKING_SENTINEL', label: 'Anti-Trafficking', tag: 'Armed' },
     { id: 'TRADING_COMMAND', label: 'Execution', tag: 'Live' },
     { id: 'PORTAL_LANDING', label: 'Overview', tag: null },
   ];

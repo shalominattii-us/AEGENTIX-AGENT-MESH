@@ -57,6 +57,7 @@ import { GrokAuditModal } from './components/GrokAuditModal';
 import { NexusSkillRegistrySuite } from './components/NexusSkillRegistrySuite';
 import { ZeroCapitalFlywheelSuite } from './components/ZeroCapitalFlywheelSuite';
 import { SovereignOriginNodeSuite } from './components/SovereignOriginNodeSuite';
+import { AntiTraffickingSentinelSuite } from './components/AntiTraffickingSentinelSuite';
 import { 
   WalletBalances, 
   MarketAsset, 
@@ -253,6 +254,14 @@ export default function App() {
       'sovereign_node': 'SOVEREIGN_ORIGIN_NODE',
       'agent_os': 'SOVEREIGN_ORIGIN_NODE',
       'agentos': 'SOVEREIGN_ORIGIN_NODE',
+      'anti-trafficking': 'ANTI_TRAFFICKING_SENTINEL',
+      'antitrafficking': 'ANTI_TRAFFICKING_SENTINEL',
+      'anti_trafficking': 'ANTI_TRAFFICKING_SENTINEL',
+      'trafficking': 'ANTI_TRAFFICKING_SENTINEL',
+      'sentinel': 'ANTI_TRAFFICKING_SENTINEL',
+      'freedom': 'ANTI_TRAFFICKING_SENTINEL',
+      'fincen': 'ANTI_TRAFFICKING_SENTINEL',
+      'forced_labor': 'ANTI_TRAFFICKING_SENTINEL',
     };
     if (aliasMap[clean]) return aliasMap[clean];
     const upper = clean.toUpperCase();
@@ -274,7 +283,7 @@ export default function App() {
     return 'PORTAL_LANDING';
   };
 
-  const [centerTab, setCenterTabState] = useState<'PORTAL_LANDING' | 'JARVIS_BUILDER' | 'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'PINNACLE_DERIVATIVES' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM' | 'NEXUS_REGISTRY' | 'ZERO_CAP_FLYWHEEL' | 'SOVEREIGN_ORIGIN_NODE'>(getInitialTab);
+  const [centerTab, setCenterTabState] = useState<'PORTAL_LANDING' | 'JARVIS_BUILDER' | 'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'PINNACLE_DERIVATIVES' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM' | 'NEXUS_REGISTRY' | 'ZERO_CAP_FLYWHEEL' | 'SOVEREIGN_ORIGIN_NODE' | 'ANTI_TRAFFICKING_SENTINEL'>(getInitialTab);
 
   const setCenterTab = (tab: any) => {
     setCenterTabState(tab);
@@ -643,7 +652,7 @@ export default function App() {
     setPendingHardwareTrade(null);
   };
 
-  const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE'].includes(centerTab);
+  const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE', 'ANTI_TRAFFICKING_SENTINEL'].includes(centerTab);
 
   return (
     <div className="min-h-screen bg-[#080B10] text-slate-200 flex flex-col font-mono selection:bg-cyan-500/30 selection:text-cyan-200">
@@ -785,6 +794,7 @@ export default function App() {
             onLaunchOriginNode={() => setCenterTab('SOVEREIGN_ORIGIN_NODE')}
             onLaunchZeroCap={() => setCenterTab('ZERO_CAP_FLYWHEEL')}
             onLaunchSkillMatrix={() => setCenterTab('NEXUS_REGISTRY')}
+            onLaunchAntiTrafficking={() => setCenterTab('ANTI_TRAFFICKING_SENTINEL')}
             onLaunchMedicalApp={() => setCenterTab('HEALTHCARE_NET')}
             onLaunchPinnacleApp={() => setCenterTab('PINNACLE_DERIVATIVES')}
             onLaunchJarvisBuilder={() => setCenterTab('JARVIS_BUILDER')}
@@ -794,6 +804,14 @@ export default function App() {
           />
         ) : (
           <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+            {/* TAB CONTENT: Anti-Human-Trafficking & Forced Labor Sentinel */}
+            {centerTab === 'ANTI_TRAFFICKING_SENTINEL' && (
+              <AntiTraffickingSentinelSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onBackToPortal={() => setCenterTab('PORTAL_LANDING')}
+              />
+            )}
+
             {/* TAB CONTENT: Jarvis App Studio (Visual Workflow Builder) */}
             {centerTab === 'JARVIS_BUILDER' && (
               <JarvisAppBuilderStudio
@@ -1274,6 +1292,14 @@ export default function App() {
             {centerTab === 'SOVEREIGN_ORIGIN_NODE' && (
               <SovereignOriginNodeSuite
                 onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Anti-Human-Trafficking & Forced Labor Sentinel */}
+            {centerTab === 'ANTI_TRAFFICKING_SENTINEL' && (
+              <AntiTraffickingSentinelSuite
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onBackToPortal={() => setCenterTab('PORTAL_LANDING')}
               />
             )}
 

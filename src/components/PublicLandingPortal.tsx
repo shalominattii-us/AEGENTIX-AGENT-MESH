@@ -20,7 +20,10 @@ import {
   RefreshCw,
   TrendingUp,
   Flame,
-  Radio
+  Radio,
+  ShieldAlert,
+  Scale,
+  AlertOctagon
 } from 'lucide-react';
 import { SovereignSeal } from './SovereignSeal';
 
@@ -28,6 +31,7 @@ interface PublicLandingPortalProps {
   onLaunchOriginNode?: () => void;
   onLaunchZeroCap?: () => void;
   onLaunchSkillMatrix?: () => void;
+  onLaunchAntiTrafficking?: () => void;
   onLaunchMedicalApp?: () => void;
   onLaunchPinnacleApp?: () => void;
   onLaunchJarvisBuilder?: () => void;
@@ -40,6 +44,7 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
   onLaunchOriginNode,
   onLaunchZeroCap,
   onLaunchSkillMatrix,
+  onLaunchAntiTrafficking,
   onLaunchMedicalApp,
   onLaunchPinnacleApp,
   onLaunchJarvisBuilder,
@@ -113,6 +118,13 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
             >
               29 DEX/CEX Venues
             </button>
+            <button
+              onClick={onLaunchAntiTrafficking}
+              className="hover:text-rose-300 transition-colors cursor-pointer flex items-center gap-1.5 text-rose-400 font-medium"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Anti-Trafficking Sentinel</span>
+            </button>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -163,6 +175,14 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
             >
               <DollarSign className="w-4 h-4 text-emerald-400" />
               <span>Zero-Capital Revenue Streams</span>
+            </button>
+
+            <button
+              onClick={onLaunchAntiTrafficking}
+              className="px-5 py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-medium text-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            >
+              <ShieldAlert className="w-4 h-4 text-rose-400" />
+              <span>Anti-Trafficking Sentinel</span>
             </button>
 
             <a
@@ -444,6 +464,73 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
         </div>
       </section>
 
+      {/* Anti-Human-Trafficking & Forced Labor Scrutiny Sentinel Section */}
+      <section className="py-20 px-6 max-w-7xl mx-auto space-y-10">
+        <div className="border border-rose-500/20 bg-[#0C0D14] rounded-2xl p-6 sm:p-10 backdrop-blur-md relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
+            <div className="space-y-4 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>FINCEN FIN-2020-A008 &middot; DOL ILAB &middot; 18 U.S.C. §§ 1581–1597</span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+                Zero-Tolerance Anti-Trafficking Sentinel
+              </h2>
+
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Deterministic compliance gating and tripwire enforcement against human trafficking, modern slavery, and child labor. The engine continuously cross-checks all counterparty identities, trade corridors, and declared cargo against FinCEN typologies, the Uyghur Forced Labor Prevention Act (UFLPA), and US State Department TIP Tier 3 watchlists.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono text-zinc-400">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>12 FinCEN Red-Flag Behavioral Typologies</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>22 DOL ILAB High-Risk Sourced Commodities</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>16 Sanctioned Tier 3 Sovereign Regimes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>18 U.S.C. § 1594 Asset Forfeiture Tripwires</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-xl bg-[#08090D] border border-white/[0.08] space-y-4 shrink-0 sm:min-w-[320px]">
+              <div className="text-xs font-semibold text-white">Full-Spectrum Sentinel Active</div>
+              <div className="space-y-2 text-xs font-mono">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-zinc-300">
+                  <div className="text-zinc-500 text-[10px]">Statutory Covenant</div>
+                  <code>SOVEREIGN_HUMAN_FREEDOM_COVENANT_V1</code>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-zinc-300">
+                  <div className="text-zinc-500 text-[10px]">Gateway Response</div>
+                  <code>IMMEDIATE_SOCKET_DISCONNECT</code>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-zinc-300">
+                  <div className="text-zinc-500 text-[10px]">Audit Chain State</div>
+                  <code>HMAC-SHA256 IMMUTABLE LOGGING</code>
+                </div>
+              </div>
+
+              <button
+                onClick={onLaunchAntiTrafficking}
+                className="w-full py-2.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-semibold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-sm shadow-rose-900/30"
+              >
+                <span>Launch Anti-Trafficking Sentinel Suite</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* TensorAgent OS Bare-Metal Integration Section */}
       <section id="tensoragent" className="py-20 px-6 max-w-7xl mx-auto space-y-10">
         <div className="border border-white/[0.08] bg-[#0C0D14] rounded-2xl p-6 sm:p-10 backdrop-blur-md">
@@ -535,6 +622,9 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
             </button>
             <button onClick={onLaunchSkillMatrix} className="hover:text-white transition-colors cursor-pointer">
               Skill Registry
+            </button>
+            <button onClick={onLaunchAntiTrafficking} className="hover:text-rose-300 text-rose-400 transition-colors cursor-pointer">
+              Anti-Trafficking
             </button>
             <a
               href="https://github.com/shalominattii-us/Aegentix-super-agent-wallet-Google-ai-studios"
