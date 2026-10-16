@@ -87,14 +87,16 @@ export function launchAbleton(alsFilePath?: string): Promise<{ success: boolean;
       return reject(new Error(`Ableton Live 12 executable not found at: ${ABLETON_EXE_PATH}`));
     }
 
-    const args = alsFilePath && fs.existsSync(alsFilePath) ? [path.resolve(alsFilePath)] : [];
+    const defaultProject = path.resolve(process.cwd(), 'OmniCyberDAW_Master_Expert_Suite.als');
+    const targetFile = alsFilePath && fs.existsSync(alsFilePath) ? path.resolve(alsFilePath) : (fs.existsSync(defaultProject) ? defaultProject : undefined);
+    const args = targetFile ? [targetFile] : [];
     const child = spawn(ABLETON_EXE_PATH, args, { detached: true, stdio: 'ignore' });
     child.unref();
 
     resolve({
       success: true,
       pid: child.pid,
-      message: `Launched Ableton Live 12 Trial (PID: ${child.pid})` + (args.length ? ` with project: ${args[0]}` : ''),
+      message: `Launched Ableton Live 12 Trial (PID: ${child.pid})` + (args.length ? ` with master project: ${args[0]}` : ''),
     });
   });
 }
