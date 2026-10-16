@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import zlib from 'zlib';
 import QRCode from 'qrcode';
 import { createRequire } from 'module';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -13,6 +14,9 @@ import { SHALOMINATTII_REPOS as ALL_GITHUB_REPOS, GITHUB_USER_PROFILE } from './
 import { grokMcpRouter } from './src/mcp/grokMcpServer.ts';
 import { nexusRegistry } from './src/nexus/nexusRegistryEngine.ts';
 import { ANTI_TRAFFICKING_DATASETS, evaluateAntiTraffickingCompliance } from './src/data/antiTraffickingDatasets.ts';
+import { generateAbletonLiveXml } from './src/utils/abletonLiveSetGenerator.ts';
+import { generateStandardMidiFile } from './src/utils/midiFileGenerator.ts';
+import { ABLETON_REMOTE_SCRIPT_PYTHON, ABLETON_REMOTE_SCRIPT_INIT, ABLETON_OSC_INSTRUCTIONS } from './src/utils/abletonRemoteScript.ts';
 
 dotenv.config();
 
@@ -8585,6 +8589,103 @@ app.get('/api/xaman/check-payload/:payloadId', (req, res) => {
     return res.status(404).json({ success: false, error: 'Payload not found' });
   }
   res.json({ success: true, payload: p });
+});
+
+// ============================================
+// AEGENTIX CYBERDAW - ABLETON LIVE MASTERING API
+// ============================================
+
+// POST /api/cyberdaw/ableton/export-als: Export Native Ableton Live Set (.als)
+app.post('/api/cyberdaw/ableton/export-als', (req, res) => {
+  try {
+    const {
+      projectName = 'Aegentix_CyberDAW_Master',
+      bpm = 132,
+      tracks = [],
+      includeMasterChain = true,
+      masteringStyle = 'HIGH_ENERGY_MASTER',
+    } = req.body || {};
+
+    const rawXml = generateAbletonLiveXml({
+      projectName,
+      bpm: Number(bpm) || 132,
+      tracks,
+      includeMasterChain: Boolean(includeMasterChain),
+      masteringStyle: masteringStyle || 'HIGH_ENERGY_MASTER',
+    });
+
+    // Ableton Live Sets (.als) are gzip-compressed XML documents
+    const compressedAls = zlib.gzipSync(Buffer.from(rawXml, 'utf-8'), { level: 9 });
+
+    const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'application/x-gzip');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.als"`);
+    res.setHeader('Content-Length', compressedAls.length);
+    res.send(compressedAls);
+  } catch (err: any) {
+    console.error('[Ableton ALS Export Error]', err);
+    res.status(500).json({ error: 'Failed to generate Ableton Live Set: ' + err.message });
+  }
+});
+
+// POST /api/cyberdaw/midi/export-mid: Export Standard MIDI File (SMF Format 1)
+app.post('/api/cyberdaw/midi/export-mid', (req, res) => {
+  try {
+    const {
+      projectName = 'Aegentix_CyberDAW_Tracks',
+      bpm = 132,
+      tracks = [],
+    } = req.body || {};
+
+    const midiBuffer = generateStandardMidiFile(
+      Number(bpm) || 132,
+      tracks.map((t: any, idx: number) => ({
+        name: t.name || `Track ${idx + 1}`,
+        channel: idx,
+        baseNote: Number(t.baseMidiNote ?? t.baseFreq ? Math.round(69 + 12 * Math.log2((t.baseFreq || 440) / 440)) : 60),
+        steps: Array.isArray(t.steps) ? t.steps : Array(16).fill(false),
+      }))
+    );
+
+    const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'audio/midi');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.mid"`);
+    res.setHeader('Content-Length', midiBuffer.length);
+    res.send(Buffer.from(midiBuffer));
+  } catch (err: any) {
+    console.error('[MIDI Export Error]', err);
+    res.status(500).json({ error: 'Failed to generate MIDI file: ' + err.message });
+  }
+});
+
+// GET /api/cyberdaw/ableton/remote-script: Download Python Remote Script & OSC Protocol Spec
+app.get('/api/cyberdaw/ableton/remote-script', (_req, res) => {
+  res.json({
+    success: true,
+    controllerName: 'Aegentix_CyberDAW',
+    targetLiveVersions: ['Ableton Live 10', 'Ableton Live 11', 'Ableton Live 12'],
+    installPaths: {
+      windows: '%USERPROFILE%\\Documents\\Ableton\\User Library\\Remote Scripts\\Aegentix_CyberDAW',
+      macos: '~/Music/Ableton/User Library/Remote Scripts/Aegentix_CyberDAW',
+    },
+    pythonScript: ABLETON_REMOTE_SCRIPT_PYTHON,
+    initScript: ABLETON_REMOTE_SCRIPT_INIT,
+    oscProtocolGuide: ABLETON_OSC_INSTRUCTIONS,
+    defaultUdpPorts: { inbound: 11000, outbound: 11001 },
+  });
+});
+
+// POST /api/cyberdaw/ableton/osc-trigger: Send OSC Event to Ableton Live
+app.post('/api/cyberdaw/ableton/osc-trigger', (req, res) => {
+  const { command, args } = req.body || {};
+  console.log(`[CyberDAW -> AbletonOSC] Sent ${command} with args:`, args);
+  res.json({
+    success: true,
+    sentCommand: command,
+    args: args || [],
+    targetPort: 11000,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ============================================

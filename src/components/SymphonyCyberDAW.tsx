@@ -21,7 +21,24 @@ import {
   Clock,
   Gauge,
   SlidersHorizontal,
+  Download,
+  FolderDown,
+  Check,
+  Copy,
+  ExternalLink,
+  Disc,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  FileCode,
+  Terminal,
 } from 'lucide-react';
+import {
+  ABLETON_REMOTE_SCRIPT_PYTHON,
+  ABLETON_REMOTE_SCRIPT_INIT,
+  ABLETON_OSC_INSTRUCTIONS,
+} from '../utils/abletonRemoteScript';
 
 export interface DAWTrack {
   id: string;
@@ -36,6 +53,8 @@ export interface DAWTrack {
   soloed: boolean;
   soundType: 'SYNTH_LEAD' | 'SUB_BASS' | 'PERCUSSION' | 'PAD' | 'METALLIC' | 'ACID_PLUCK';
   baseFreq: number;
+  baseMidiNote: number; // MIDI note pitch 0-127
+  colorIndex: number; // Ableton Live color palette index (1-60)
   steps: boolean[]; // 16 steps
 }
 
@@ -93,6 +112,20 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const [isSonifyingLiveEvents, setIsSonifyingLiveEvents] = useState(true);
   const [activePreset, setActivePreset] = useState('NEON_CONSENSUS_132');
 
+  // Ableton Live Master Suite State
+  const [isAbletonSectionOpen, setIsAbletonSectionOpen] = useState(true);
+  const [masteringStyle, setMasteringStyle] = useState<'HIGH_ENERGY_MASTER' | 'STREAMING_SPOTIFY' | 'CLUB_SUB_HEAVY' | 'AMBIENT_CLEAN'>('HIGH_ENERGY_MASTER');
+  const [isExportingAls, setIsExportingAls] = useState(false);
+  const [isExportingMid, setIsExportingMid] = useState(false);
+  const [copiedCodeLabel, setCopiedCodeLabel] = useState<string | null>(null);
+
+  // Web MIDI API State
+  const [midiDevices, setMidiDevices] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedMidiDevice, setSelectedMidiDevice] = useState<string>('');
+  const [isMidiActive, setIsMidiActive] = useState(false);
+  const [midiAccessInstance, setMidiAccessInstance] = useState<any>(null);
+  const midiOutputRef = useRef<any>(null);
+
   // Tracks State
   const [tracks, setTracks] = useState<DAWTrack[]>([
     {
@@ -108,6 +141,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'SYNTH_LEAD',
       baseFreq: 440, // A4
+      baseMidiNote: 69, // A4
+      colorIndex: 48,
       steps: [true, false, false, true, false, false, true, false, true, false, false, true, false, true, false, false],
     },
     {
@@ -123,6 +158,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'SUB_BASS',
       baseFreq: 55, // A1
+      baseMidiNote: 33, // A1
+      colorIndex: 12,
       steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
     },
     {
@@ -138,6 +175,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'PERCUSSION',
       baseFreq: 800,
+      baseMidiNote: 42, // F#1 / Closed Hi-Hat
+      colorIndex: 24,
       steps: [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
     },
     {
@@ -153,6 +192,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'PAD',
       baseFreq: 220, // A3
+      baseMidiNote: 60, // C4
+      colorIndex: 40,
       steps: [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
     },
     {
@@ -168,6 +209,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'METALLIC',
       baseFreq: 1200,
+      baseMidiNote: 72, // C5
+      colorIndex: 3,
       steps: [false, true, false, false, false, true, false, true, false, true, false, false, false, true, true, false],
     },
     {
@@ -183,6 +226,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       soloed: false,
       soundType: 'ACID_PLUCK',
       baseFreq: 660, // E5
+      baseMidiNote: 45, // A2
+      colorIndex: 56,
       steps: [false, false, true, true, false, false, true, true, false, false, true, true, false, true, false, true],
     },
   ]);
@@ -193,9 +238,46 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const filterNodeRef = useRef<BiquadFilterNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const stepTimerRef = useRef<any>(null);
+
+  // Sequencer Timing References
+  const stepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentStepRef = useRef(0);
   const isPlayingRef = useRef(false);
+
+  // Initialize Web MIDI API
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && (navigator as any).requestMIDIAccess) {
+      (navigator as any).requestMIDIAccess({ sysex: false })
+        .then((midiAccess: any) => {
+          setMidiAccessInstance(midiAccess);
+          const outputs: Array<{ id: string; name: string }> = [];
+          midiAccess.outputs.forEach((port: any) => {
+            outputs.push({ id: port.id, name: port.name || `MIDI Port ${port.id}` });
+          });
+          setMidiDevices(outputs);
+          if (outputs.length > 0) {
+            setSelectedMidiDevice(outputs[0].id);
+            midiOutputRef.current = midiAccess.outputs.get(outputs[0].id);
+            setIsMidiActive(true);
+          }
+        })
+        .catch(() => {
+          console.warn('[WebMIDI] No MIDI Access granted or hardware available');
+        });
+    }
+  }, []);
+
+  const handleMidiDeviceChange = (devId: string) => {
+    setSelectedMidiDevice(devId);
+    if (midiAccessInstance) {
+      const port = midiAccessInstance.outputs.get(devId);
+      midiOutputRef.current = port;
+      setIsMidiActive(Boolean(port));
+      if (onNotify && port) {
+        onNotify(`Linked Ableton Live MIDI Output: ${port.name}`, 'SUCCESS');
+      }
+    }
+  };
 
   // Initialize Web Audio Engine
   const initAudio = useCallback(() => {
@@ -239,6 +321,11 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     if (filterNodeRef.current && audioCtxRef.current) {
       filterNodeRef.current.frequency.setValueAtTime(filterCutoff, audioCtxRef.current.currentTime);
       filterNodeRef.current.Q.setValueAtTime(filterResonance, audioCtxRef.current.currentTime);
+    }
+    // Also send CC 74 (Filter Cutoff) to connected Ableton MIDI port
+    if (midiOutputRef.current) {
+      const ccVal = Math.min(127, Math.floor((filterCutoff / 16000) * 127));
+      midiOutputRef.current.send([0xB0, 74, ccVal]);
     }
   }, [filterCutoff, filterResonance]);
 
@@ -298,10 +385,11 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
 
       const pFilter = ctx.createBiquadFilter();
       pFilter.type = 'bandpass';
-      pFilter.frequency.setValueAtTime(1400, time);
+      pFilter.frequency.setValueAtTime(track.baseFreq, time);
+      pFilter.Q.setValueAtTime(4.0, time);
 
-      trackGain.gain.setValueAtTime(track.volume * 0.9, time);
-      trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+      trackGain.gain.setValueAtTime(track.volume * 1.1, time);
+      trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
 
       noise.connect(pFilter);
       pFilter.connect(trackGain);
@@ -310,13 +398,13 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       noise.start(time);
       noise.stop(time + 0.08);
     } else if (track.soundType === 'PAD') {
-      // Quantum Reverb Pad
+      // Quantum Warm Pad
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(track.baseFreq * 1.5, time);
+      osc.frequency.setValueAtTime(track.baseFreq, time);
 
-      trackGain.gain.setValueAtTime(0.001, time);
-      trackGain.gain.linearRampToValueAtTime(track.volume * 0.6, time + 0.1);
+      trackGain.gain.setValueAtTime(0.01, time);
+      trackGain.gain.linearRampToValueAtTime(track.volume * 0.6, time + 0.05);
       trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
 
       osc.connect(trackGain);
@@ -324,25 +412,23 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       osc.start(time);
       osc.stop(time + 0.6);
     } else if (track.soundType === 'METALLIC') {
-      // Federal DAG Metallic Clave Ping
+      // Hypergraph Resonant Ring
       const osc = ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(track.baseFreq, time);
-      osc.frequency.exponentialRampToValueAtTime(track.baseFreq * 0.7, time + 0.12);
 
-      trackGain.gain.setValueAtTime(track.volume * 0.8, time);
-      trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+      trackGain.gain.setValueAtTime(track.volume * 0.7, time);
+      trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
 
       osc.connect(trackGain);
       trackGain.connect(filterNodeRef.current);
       osc.start(time);
-      osc.stop(time + 0.14);
-    } else {
-      // Acid Arp Pluck
+      osc.stop(time + 0.18);
+    } else if (track.soundType === 'ACID_PLUCK') {
+      // 303 High Resonance Pluck
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
-      const stepPitch = track.baseFreq * (1 + (currentStepRef.current % 4) * 0.25);
-      osc.frequency.setValueAtTime(stepPitch, time);
+      osc.frequency.setValueAtTime(track.baseFreq, time);
 
       trackGain.gain.setValueAtTime(track.volume * 0.85, time);
       trackGain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
@@ -363,10 +449,25 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
 
     const hasAnySolo = tracks.some(t => t.soloed);
 
-    tracks.forEach((track) => {
+    tracks.forEach((track, trackIdx) => {
       const isAudible = hasAnySolo ? track.soloed : !track.muted;
       if (isAudible && track.steps[step]) {
         playTrackSound(track, audioCtxRef.current?.currentTime || 0);
+
+        // Real-time MIDI Stream to connected Ableton Port
+        if (midiOutputRef.current) {
+          const ch = trackIdx & 0x0F;
+          const note = track.baseMidiNote || 60;
+          const vel = step % 4 === 0 ? 115 : 100;
+          // Send Note On
+          midiOutputRef.current.send([0x90 | ch, note, vel]);
+          // Schedule Note Off after 120ms
+          setTimeout(() => {
+            if (midiOutputRef.current) {
+              midiOutputRef.current.send([0x80 | ch, note, 0x00]);
+            }
+          }, 120);
+        }
       }
     });
 
@@ -384,11 +485,28 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       isPlayingRef.current = false;
       setIsPlaying(false);
       if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+
+      // Send MIDI Stop (0xFC)
+      if (midiOutputRef.current) {
+        midiOutputRef.current.send([0xFC]);
+      }
     } else {
       isPlayingRef.current = true;
       setIsPlaying(true);
       runSequencerStep();
       if (onNotify) onNotify(`CyberDAW Transport Running at ${bpm} BPM`, 'SUCCESS');
+
+      // Send MIDI Start (0xFA)
+      if (midiOutputRef.current) {
+        midiOutputRef.current.send([0xFA]);
+      }
+
+      // Also trigger AbletonOSC bridge on port :11000
+      fetch('/api/cyberdaw/ableton/osc-trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: '/live/song/start_playing', args: [] }),
+      }).catch(() => {});
     }
   };
 
@@ -398,6 +516,16 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
     currentStepRef.current = 0;
     setCurrentStep(0);
+
+    // Send MIDI Stop
+    if (midiOutputRef.current) {
+      midiOutputRef.current.send([0xFC]);
+    }
+    fetch('/api/cyberdaw/ableton/osc-trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: '/live/song/stop_playing', args: [] }),
+    }).catch(() => {});
   };
 
   // Preset Pattern Loader
@@ -448,6 +576,104 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   // Update Track Volume
   const handleTrackVolume = (trackId: string, val: number) => {
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, volume: val } : t));
+  };
+
+  // Export Ableton Live Set (.als)
+  const handleExportAbletonAls = async () => {
+    setIsExportingAls(true);
+    try {
+      const res = await fetch('/api/cyberdaw/ableton/export-als', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: `Aegentix_CyberDAW_${activePreset}`,
+          bpm,
+          tracks,
+          includeMasterChain: true,
+          masteringStyle,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate Ableton Live Set');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Aegentix_CyberDAW_${activePreset}.als`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      if (onNotify) {
+        onNotify(`Exported Ableton Live Set: Aegentix_CyberDAW_${activePreset}.als (${masteringStyle})`, 'SUCCESS');
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`Export error: ${err.message}`, 'ALERT');
+    } finally {
+      setIsExportingAls(false);
+    }
+  };
+
+  // Export Standard MIDI (.mid)
+  const handleExportMidi = async () => {
+    setIsExportingMid(true);
+    try {
+      const res = await fetch('/api/cyberdaw/midi/export-mid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: `Aegentix_CyberDAW_${activePreset}`,
+          bpm,
+          tracks,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate MIDI file');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Aegentix_CyberDAW_${activePreset}.mid`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      if (onNotify) {
+        onNotify(`Exported Multi-Track MIDI: Aegentix_CyberDAW_${activePreset}.mid`, 'SUCCESS');
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`MIDI export error: ${err.message}`, 'ALERT');
+    } finally {
+      setIsExportingMid(false);
+    }
+  };
+
+  // Download Python Remote Script for Ableton Live
+  const handleDownloadRemoteScript = () => {
+    const blob = new Blob([ABLETON_REMOTE_SCRIPT_PYTHON], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Aegentix_CyberDAW.py';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    if (onNotify) {
+      onNotify('Downloaded Aegentix_CyberDAW.py! Place into Documents/Ableton/User Library/Remote Scripts/', 'SUCCESS');
+    }
+  };
+
+  const handleCopyCode = (code: string, label: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCodeLabel(label);
+    setTimeout(() => setCopiedCodeLabel(null), 2500);
+    if (onNotify) onNotify(`Copied ${label} to clipboard!`, 'INFO');
   };
 
   // Live Oscilloscope Visualizer Animation
@@ -559,23 +785,23 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-bold text-white tracking-wider uppercase font-sans">
-                SYMPHONY CYBERDAW &middot; MULTI-AGENT AUDIO WORKSTATION
+                OMNICYBERDAW &middot; ABLETON LIVE MASTER STUDIO
               </h2>
               <span className="px-2 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                16-STEP SONIFICATION ENGINE
+                16-STEP SONIFICATION
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                WEB AUDIO SYNTH
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ABLETON LIVE 11/12 NATIVE
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Conductor Event Bus (:9005) &middot; Real-time acoustic telemetry, neuro-synths, sub-bass gates &amp; hypergraph polyrhythms
+              Conductor Event Bus (:9005) &middot; Real-time acoustic telemetry, Web MIDI output &amp; master .als / .mid project export
             </p>
           </div>
         </div>
 
-        {/* Master Transport Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Master Transport & Ableton Actions */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Preset Selector */}
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-[10px] text-slate-400 uppercase font-bold">Preset:</span>
@@ -601,13 +827,13 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               }`}
             >
               {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+              <span>{isPlaying ? 'Pause' : 'Play'}</span>
             </button>
 
             <button
               onClick={handleStop}
               className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg cursor-pointer transition-colors"
-              title="Stop &amp; Rewind"
+              title="Stop & Rewind"
             >
               <Square className="w-3.5 h-3.5" />
             </button>
@@ -626,11 +852,201 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               className="w-12 bg-transparent text-white font-mono font-bold text-xs outline-hidden text-center"
             />
           </div>
+
+          {/* Ableton Master Toggle */}
+          <button
+            onClick={() => setIsAbletonSectionOpen(!isAbletonSectionOpen)}
+            className={`px-3 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs cursor-pointer transition-all ${
+              isAbletonSectionOpen
+                ? 'bg-purple-950/80 text-purple-300 border-purple-500 shadow-md shadow-purple-900/40'
+                : 'bg-slate-900 text-slate-400 hover:text-white border-slate-700'
+            }`}
+          >
+            <Disc className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Ableton Live Suite</span>
+            {isAbletonSectionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. REAL-TIME OSCILLOSCOPE CANVAS & MASTER BUS CONTROLS                    */}
+      {/* 2. ABLETON LIVE 11/12 MASTER PRODUCTION WORKSTATION SUITE                 */}
+      {/* ========================================================================= */}
+      {isAbletonSectionOpen && (
+        <div className="mx-4 p-4 rounded-xl bg-gradient-to-br from-[#070B1A] via-[#090618] to-[#040813] border border-cyan-500/30 shadow-xl space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold">
+                  ABLETON LIVE 11 / 12 STUDIO MASTER
+                </span>
+                <span className="text-slate-400 text-xs">Direct .als Project Builder &middot; Multi-Track SMF MIDI &middot; Remote Scripting</span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                Transforms all 6 CyberDAW agent channels into a native, drag-and-drop Ableton Live Set with clips, volume/pan automation, and a 5-tier mastering chain.
+              </p>
+            </div>
+
+            {/* Quick Export Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleExportAbletonAls}
+                disabled={isExportingAls}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs transition shadow-lg shadow-cyan-900/30 disabled:opacity-50 cursor-pointer"
+              >
+                <FolderDown className="w-3.5 h-3.5" />
+                <span>{isExportingAls ? 'Compiling .als...' : 'Export Ableton Set (.als)'}</span>
+              </button>
+
+              <button
+                onClick={handleExportMidi}
+                disabled={isExportingMid}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-purple-400" />
+                <span>{isExportingMid ? 'Building MIDI...' : 'Export MIDI (.mid)'}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadRemoteScript}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs transition cursor-pointer"
+                title="Download Aegentix_CyberDAW.py Remote Script"
+              >
+                <FileCode className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Remote Script</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Ableton Controls & Mastering Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {/* Column 1: Mastering Chain & Loudness Presets */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-cyan-300">
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>Master Bus Chain Preset</span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">True Peak -0.3 dB</span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 block">Loudness Target Profile:</label>
+                <select
+                  value={masteringStyle}
+                  onChange={(e) => setMasteringStyle(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-[11px] focus:border-cyan-400 outline-none"
+                >
+                  <option value="HIGH_ENERGY_MASTER">⚡ Club / High Energy (-8.5 LUFS)</option>
+                  <option value="STREAMING_SPOTIFY">🎧 Streaming / Spotify (-14.0 LUFS)</option>
+                  <option value="CLUB_SUB_HEAVY">🔊 Sub-Heavy Cyberpunk (-9.0 LUFS)</option>
+                  <option value="AMBIENT_CLEAN">🌌 Ambient Delta-Neutral (-18.0 LUFS)</option>
+                </select>
+              </div>
+
+              {/* Mastering Rack Device Chain Visualizer */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Pre-Configured DSP Rack:</span>
+                <div className="grid grid-cols-5 gap-1 text-[9px] font-mono text-center">
+                  <div className="p-1 rounded bg-slate-900 border border-slate-750 text-cyan-300" title="Bass Mono < 120Hz">
+                    1. Utility
+                  </div>
+                  <div className="p-1 rounded bg-slate-900 border border-slate-750 text-emerald-300" title="25Hz 4x HPF, 320Hz dip, 12k air">
+                    2. EQ Eight
+                  </div>
+                  <div className="p-1 rounded bg-slate-900 border border-slate-750 text-amber-300" title="2:1 Ratio, 30ms Attack, Auto Rel">
+                    3. Glue
+                  </div>
+                  <div className="p-1 rounded bg-slate-900 border border-slate-750 text-rose-300" title="Analog Soft Clip 1.2dB">
+                    4. Sat
+                  </div>
+                  <div className="p-1 rounded bg-slate-900 border border-slate-750 text-purple-300 font-bold" title="Ceiling -0.3 dBFS, Lookahead 5ms">
+                    5. Limiter
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: Web MIDI API Hardware/Software Loopback */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-purple-300">
+                  <Radio className="w-3.5 h-3.5" />
+                  <span>Live Web MIDI Loopback</span>
+                </span>
+                <span className={`w-2 h-2 rounded-full ${isMidiActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-400 block">Ableton MIDI Input Port:</label>
+                <select
+                  value={selectedMidiDevice}
+                  onChange={(e) => handleMidiDeviceChange(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-purple-300 font-mono text-[11px] focus:border-purple-400 outline-none"
+                >
+                  {midiDevices.map((dev) => (
+                    <option key={dev.id} value={dev.id}>
+                      {dev.name}
+                    </option>
+                  ))}
+                  {midiDevices.length === 0 && (
+                    <option value="">No MIDI Port Found (Install loopMIDI)</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="p-2 rounded bg-slate-900/60 border border-slate-800 text-[10px] space-y-0.5 text-slate-400">
+                <div className="flex justify-between">
+                  <span>MIDI Clock:</span>
+                  <span className={isPlaying ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                    {isPlaying ? `TRANSMITTING (${bpm} BPM)` : 'IDLE'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Channel Routing:</span>
+                  <span className="text-cyan-300">Ch 1-6 (Discrete Agent Stems)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: AbletonOSC Remote & Python Script */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-emerald-300">
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>AbletonOSC & Remote Scripts</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Port :11000 UDP</span>
+              </div>
+
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Connect AbletonOSC to control Ableton Live transport, track volume, pan, and clip triggers from CyberDAW without latency.
+              </p>
+
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  onClick={() => handleCopyCode(ABLETON_REMOTE_SCRIPT_PYTHON, 'Python Remote Script')}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-[10px] font-mono flex items-center justify-center gap-1 cursor-pointer transition"
+                >
+                  {copiedCodeLabel === 'Python Remote Script' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>Copy Script</span>
+                </button>
+
+                <button
+                  onClick={() => handleCopyCode(ABLETON_OSC_INSTRUCTIONS, 'OSC Protocol Guide')}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-[10px] font-mono flex items-center justify-center gap-1 cursor-pointer transition"
+                >
+                  {copiedCodeLabel === 'OSC Protocol Guide' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>OSC Protocol</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. REAL-TIME OSCILLOSCOPE CANVAS & MASTER BUS CONTROLS                    */}
       {/* ========================================================================= */}
       <div className="px-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Oscilloscope Canvas */}
@@ -667,7 +1083,7 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
 
           <div className="grid grid-cols-2 gap-3 text-[10px]">
             <div>
-              <span className="text-slate-500 block mb-1">Lowpass Cutoff: {filterCutoff}Hz</span>
+              <span className="text-slate-500 block mb-1">Lowpass Cutoff: {filterCutoff}Hz (CC 74)</span>
               <input
                 type="range"
                 min={200}
@@ -679,7 +1095,7 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               />
             </div>
             <div>
-              <span className="text-slate-500 block mb-1">Master Volume</span>
+              <span className="text-slate-500 block mb-1">Master Volume (CC 7)</span>
               <input
                 type="range"
                 min={0}
@@ -708,7 +1124,7 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. MULTI-TRACK 16-STEP SEQUENCER GRID                                     */}
+      {/* 4. MULTI-TRACK 16-STEP SEQUENCER GRID                                     */}
       {/* ========================================================================= */}
       <div className="px-4 space-y-2 pb-4">
         {/* Step Marker Numbers Header */}
@@ -717,7 +1133,7 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
             Orchestra Tracks &middot; 16-Step Sequencing Matrix:
           </span>
           <span className="text-[9px] text-slate-500">
-            Click any step to arm/disarm triggers &middot; Bar partitions marked every 4 steps
+            Click any step to arm/disarm triggers &middot; Bar partitions marked every 4 steps &middot; Exportable to Ableton Live
           </span>
         </div>
 
