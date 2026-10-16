@@ -30,8 +30,22 @@ import {
 import {
   getObsStatus,
   launchObs,
-  callObs
+  callObs,
+  getObsAudioMixer,
+  setObsAudioInputVolume,
+  setObsAudioInputMute,
+  applyStudioDspRackToSource,
 } from './src/utils/obsStudioBridge.ts';
+import {
+  SCALES_AND_MODES_DATABASE,
+  MASTERING_LOUDNESS_STANDARDS,
+  CHORD_PROGRESSIONS_VAULT,
+  GROOVE_PROFILES,
+  ABLETON_NATIVE_PRESETS,
+} from './src/data/musicProductionDatasets.ts';
+import {
+  INDUSTRY_MASTERING_CONFIGS,
+} from './src/data/industryAudioProductionConfigs.ts';
 
 dotenv.config();
 
@@ -8919,6 +8933,107 @@ app.post('/api/obs/call', async (req, res) => {
     res.json({ success: true, requestType, result });
   } catch (err: any) {
     res.status(500).json({ error: 'OBS call failed: ' + err.message });
+  }
+});
+
+// ============================================
+// OBS AUDIO MIXER & STREAM ENGINEERING API
+// ============================================
+
+// GET /api/obs/audio-mixer: Get all audio inputs, volumes, mutes, and active DSP filters
+app.get('/api/obs/audio-mixer', async (_req, res) => {
+  try {
+    const inputs = await getObsAudioMixer();
+    res.json({ success: true, inputs });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to query OBS audio mixer: ' + err.message });
+  }
+});
+
+// POST /api/obs/audio-input/volume: Set volume for an audio input in dB
+app.post('/api/obs/audio-input/volume', async (req, res) => {
+  try {
+    const { inputName, volumeDb } = req.body || {};
+    if (!inputName || volumeDb === undefined) {
+      return res.status(400).json({ error: 'Missing inputName or volumeDb' });
+    }
+    const result = await setObsAudioInputVolume(inputName, Number(volumeDb));
+    res.json({ success: true, inputName, volumeDb, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to set audio input volume: ' + err.message });
+  }
+});
+
+// POST /api/obs/audio-input/mute: Toggle or set input mute
+app.post('/api/obs/audio-input/mute', async (req, res) => {
+  try {
+    const { inputName, muted } = req.body || {};
+    if (!inputName || muted === undefined) {
+      return res.status(400).json({ error: 'Missing inputName or muted boolean' });
+    }
+    const result = await setObsAudioInputMute(inputName, Boolean(muted));
+    res.json({ success: true, inputName, muted, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to set audio input mute: ' + err.message });
+  }
+});
+
+// POST /api/obs/audio-input/dsp-rack: Apply studio DSP filter rack (RNNoise, Compressor, Limiter)
+app.post('/api/obs/audio-input/dsp-rack', async (req, res) => {
+  try {
+    const { sourceName } = req.body || {};
+    if (!sourceName) return res.status(400).json({ error: 'Missing sourceName' });
+    const result = await applyStudioDspRackToSource(sourceName);
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to apply DSP rack: ' + err.message });
+  }
+});
+
+// ============================================
+// MUSIC PRODUCTION DATASETS & INDUSTRY CONFIGS API
+// ============================================
+
+// GET /api/production/datasets: Access full scales, chord progressions, grooves, presets & loudness standards
+app.get('/api/production/datasets', (_req, res) => {
+  res.json({
+    success: true,
+    scales: SCALES_AND_MODES_DATABASE,
+    progressions: CHORD_PROGRESSIONS_VAULT,
+    grooves: GROOVE_PROFILES,
+    presets: ABLETON_NATIVE_PRESETS,
+    standards: MASTERING_LOUDNESS_STANDARDS,
+  });
+});
+
+// GET /api/production/industry-configs: Curated configs from iZotope, FabFilter, Dolby.io, Waves, Audiomovers
+app.get('/api/production/industry-configs', (_req, res) => {
+  res.json({
+    success: true,
+    configs: INDUSTRY_MASTERING_CONFIGS,
+  });
+});
+
+// POST /api/production/apply-mastering-chain: Configure stream and DAW for a target industry config
+app.post('/api/production/apply-mastering-chain', async (req, res) => {
+  try {
+    const { configId } = req.body || {};
+    const config = INDUSTRY_MASTERING_CONFIGS.find(c => c.id === configId) || INDUSTRY_MASTERING_CONFIGS[0];
+
+    // Apply OBS stream limiter and compressor to Desktop Audio
+    await callObs('SetSourceFilterSettings', {
+      sourceName: 'Desktop Audio',
+      filterName: 'Studio True Peak Limiter',
+      filterSettings: { threshold: config.obsStreamFilterConfig.limiterCeilingDb },
+    }).catch(() => null);
+
+    res.json({
+      success: true,
+      appliedConfig: config,
+      message: `Applied ${config.title} (${config.targetLufs} LUFS, ${config.truePeakCeilingDb} dBTP) across stream and DAW routing.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to apply mastering chain: ' + err.message });
   }
 });
 

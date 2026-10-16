@@ -39,6 +39,9 @@ import {
   Tv,
   Film,
   MonitorPlay,
+  Wand2,
+  CheckCircle2,
+  Music2,
 } from 'lucide-react';
 import {
   ABLETON_REMOTE_SCRIPT_PYTHON,
@@ -151,6 +154,17 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const [isLaunchingObs, setIsLaunchingObs] = useState(false);
   const [isObsActionBusy, setIsObsActionBusy] = useState(false);
   const [customSceneInput, setCustomSceneInput] = useState('');
+
+  // Music Production & Industry Suites State
+  const [isProductionSuiteOpen, setIsProductionSuiteOpen] = useState(true);
+  const [activeProductionTab, setActiveProductionTab] = useState<'MASTERING_CONFIGS' | 'OBS_AUDIO_MIXER' | 'CHORD_VAULT' | 'PRESET_LIBRARY'>('MASTERING_CONFIGS');
+  const [industryConfigs, setIndustryConfigs] = useState<any[]>([]);
+  const [selectedConfigId, setSelectedConfigId] = useState<string>('izotope-ozone-11-club-maximizer');
+  const [obsAudioInputs, setObsAudioInputs] = useState<any[]>([]);
+  const [chordVault, setChordVault] = useState<any[]>([]);
+  const [selectedChordGenre, setSelectedChordGenre] = useState<string>('ALL');
+  const [isApplyingMastering, setIsApplyingMastering] = useState(false);
+  const [isApplyingDspRack, setIsApplyingDspRack] = useState<string | null>(null);
 
   // Web MIDI API State
   const [midiDevices, setMidiDevices] = useState<Array<{ id: string; name: string }>>([]);
@@ -330,6 +344,36 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
       clearInterval(interval);
     };
   }, []);
+
+  // Fetch production datasets and industry configs
+  const refreshObsAudioMixer = useCallback(() => {
+    fetch('/api/obs/audio-mixer')
+      .then(res => res.json())
+      .then(data => {
+        if (data.inputs) setObsAudioInputs(data.inputs);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/production/industry-configs')
+      .then(res => res.json())
+      .then(data => {
+        if (data.configs) setIndustryConfigs(data.configs);
+      })
+      .catch(() => {});
+
+    fetch('/api/production/datasets')
+      .then(res => res.json())
+      .then(data => {
+        if (data.progressions) setChordVault(data.progressions);
+      })
+      .catch(() => {});
+
+    refreshObsAudioMixer();
+    const interval = setInterval(refreshObsAudioMixer, 4000);
+    return () => clearInterval(interval);
+  }, [refreshObsAudioMixer]);
 
   // Refresh available Web MIDI output ports
   const refreshMidiPorts = useCallback(() => {
@@ -985,6 +1029,98 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     }
   };
 
+  // Industry Mastering & Production Suite Actions
+  const handleApplyMasteringConfig = async (configId: string) => {
+    setIsApplyingMastering(true);
+    try {
+      const res = await fetch('/api/production/apply-mastering-chain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectedConfigId(configId);
+        if (onNotify) onNotify(data.message, 'SUCCESS');
+        refreshObsAudioMixer();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('Mastering config error: ' + err.message, 'ALERT');
+    } finally {
+      setIsApplyingMastering(false);
+    }
+  };
+
+  const handleApplyDspRackToSource = async (sourceName: string) => {
+    setIsApplyingDspRack(sourceName);
+    try {
+      const res = await fetch('/api/obs/audio-input/dsp-rack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onNotify) onNotify(`Applied Studio DSP Rack (RNNoise + Comp + Limiter) to ${sourceName}!`, 'SUCCESS');
+        refreshObsAudioMixer();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('Failed to apply DSP rack: ' + err.message, 'ALERT');
+    } finally {
+      setIsApplyingDspRack(null);
+    }
+  };
+
+  const handleSetInputVolume = async (inputName: string, volumeDb: number) => {
+    try {
+      await fetch('/api/obs/audio-input/volume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputName, volumeDb }),
+      });
+      setObsAudioInputs(prev => prev.map(inp => inp.inputName === inputName ? { ...inp, inputVolumeDb: volumeDb } : inp));
+    } catch (_) {}
+  };
+
+  const handleToggleInputMute = async (inputName: string, currentMuted: boolean) => {
+    try {
+      await fetch('/api/obs/audio-input/mute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputName, muted: !currentMuted }),
+      });
+      setObsAudioInputs(prev => prev.map(inp => inp.inputName === inputName ? { ...inp, inputMuted: !currentMuted } : inp));
+    } catch (_) {}
+  };
+
+  const handleInjectChordProgression = async (prog: any) => {
+    try {
+      const res = await fetch('/api/cyberdaw/ableton/inject-agent-stem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackName: `${prog.name.slice(0, 14)} (${prog.genre})`,
+          baseMidiNote: prog.midiNotes[0]?.[0] || 60,
+          steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+          volume: 0.85,
+          pan: 0.0,
+          slotIndex: 1,
+        }),
+      });
+      if (res.ok) {
+        if (onNotify) onNotify(`Injected "${prog.name}" chord progression directly into Ableton Live!`, 'SUCCESS');
+      } else {
+        throw new Error('Ableton injection failed');
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('Injection error: ' + err.message, 'ALERT');
+    }
+  };
+
   // Live Oscilloscope Visualizer Animation
   useEffect(() => {
     let animId: number;
@@ -1194,6 +1330,20 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             )}
             {isObsSectionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {/* Industry Production & Mastering Suite Toggle */}
+          <button
+            onClick={() => setIsProductionSuiteOpen(!isProductionSuiteOpen)}
+            className={`px-3 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs cursor-pointer transition-all ${
+              isProductionSuiteOpen
+                ? 'bg-amber-950/80 text-amber-300 border-amber-500 shadow-md shadow-amber-900/40'
+                : 'bg-slate-900 text-slate-400 hover:text-white border-slate-700'
+            }`}
+          >
+            <Wand2 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mastering & Industry Suites</span>
+            {isProductionSuiteOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
       </div>
@@ -1707,6 +1857,299 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2C. INDUSTRY AUDIO PRODUCTION & MASTERING SUITE                           */}
+      {/* ========================================================================= */}
+      {isProductionSuiteOpen && (
+        <div className="mx-4 p-4 rounded-xl bg-gradient-to-br from-[#0F0B18] via-[#090818] to-[#040816] border border-amber-500/30 shadow-xl space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1.5">
+                  <Wand2 className="w-3 h-3 text-amber-400" />
+                  <span>INDUSTRY AUDIO PRODUCTION & MASTERING SUITE</span>
+                </span>
+                <span className="text-slate-400 text-xs">iZotope Ozone 11 &middot; FabFilter Pro &middot; Dolby.io &middot; Waves Abbey Road &middot; Audiomovers</span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                End-to-end studio production architecture. Engineer live streams from OBS, inject 100+ genre chord progressions into Ableton Live, and apply industry-standard loudness & saturation chains.
+              </p>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveProductionTab('MASTERING_CONFIGS')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                  activeProductionTab === 'MASTERING_CONFIGS'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mastering Chains
+              </button>
+              <button
+                onClick={() => setActiveProductionTab('OBS_AUDIO_MIXER')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                  activeProductionTab === 'OBS_AUDIO_MIXER'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Stream Audio Mixer ({obsAudioInputs.length})
+              </button>
+              <button
+                onClick={() => setActiveProductionTab('CHORD_VAULT')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition ${
+                  activeProductionTab === 'CHORD_VAULT'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Chord Progression Vault ({chordVault.length})
+              </button>
+            </div>
+          </div>
+
+          {/* TAB 1: MASTERING CONFIGURATIONS */}
+          {activeProductionTab === 'MASTERING_CONFIGS' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {industryConfigs.map((cfg) => {
+                  const isSelected = selectedConfigId === cfg.id;
+                  return (
+                    <div
+                      key={cfg.id}
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-3 ${
+                        isSelected
+                          ? 'bg-amber-950/30 border-amber-500 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/40'
+                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold font-mono uppercase bg-slate-900 border border-slate-750 text-amber-300">
+                            {cfg.vendor} &middot; {cfg.category}
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                            {cfg.targetLufs} LUFS &middot; {cfg.truePeakCeilingDb} dBTP
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-white tracking-wide">
+                          {cfg.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-300 leading-relaxed">
+                          {cfg.description}
+                        </p>
+
+                        {/* Signal Flow */}
+                        <div className="p-2 rounded bg-slate-900/60 border border-slate-800 text-[9px] font-mono text-slate-400 space-y-0.5">
+                          <span className="text-amber-400 font-semibold block mb-0.5">Signal Architecture:</span>
+                          {cfg.signalFlow?.map((step: string, sIdx: number) => (
+                            <div key={sIdx} className="truncate">{step}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleApplyMasteringConfig(cfg.id)}
+                        disabled={isApplyingMastering}
+                        className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30'
+                        }`}
+                      >
+                        {isSelected ? <CheckCircle2 className="w-3.5 h-3.5 text-white" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        <span>{isSelected ? 'Active Profile Deployed' : 'Deploy to OBS & Ableton'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: LIVE STREAM AUDIO MIXER & DSP RACKS */}
+          {activeProductionTab === 'OBS_AUDIO_MIXER' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
+                <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                  <Volume2 className="w-4 h-4 text-cyan-400" />
+                  <span>Real-Time OBS Stream Audio Sources & DSP Filter Racks</span>
+                </span>
+                <button
+                  onClick={refreshObsAudioMixer}
+                  className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] cursor-pointer"
+                >
+                  Refresh Mixer
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {obsAudioInputs.map((input) => (
+                  <div
+                    key={input.inputName}
+                    className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                          <span>{input.inputName}</span>
+                          <span className="text-[9px] font-mono text-slate-500 uppercase">
+                            ({input.inputKind})
+                          </span>
+                        </h4>
+                        <span className="text-[10px] text-slate-400">
+                          Level: <strong className="text-cyan-300 font-mono">{input.inputVolumeDb.toFixed(1)} dB</strong>
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => handleToggleInputMute(input.inputName, input.inputMuted)}
+                        className={`p-1.5 rounded-lg border text-xs font-bold cursor-pointer transition ${
+                          input.inputMuted
+                            ? 'bg-rose-950/80 text-rose-300 border-rose-500'
+                            : 'bg-slate-900 text-slate-300 hover:text-white border-slate-750'
+                        }`}
+                        title={input.inputMuted ? 'Unmute' : 'Mute'}
+                      >
+                        {input.inputMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {/* Volume Slider */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                        <span>-60 dB</span>
+                        <span>0 dB</span>
+                        <span>+6 dB</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={-60}
+                        max={6}
+                        step={0.5}
+                        value={input.inputVolumeDb}
+                        onChange={(e) => handleSetInputVolume(input.inputName, Number(e.target.value))}
+                        className="w-full accent-cyan-400"
+                      />
+                    </div>
+
+                    {/* Active Filters & 1-Click DSP Rack Button */}
+                    <div className="pt-1 border-t border-slate-850 flex flex-col gap-2">
+                      <div className="flex flex-wrap gap-1">
+                        {input.filters?.length > 0 ? (
+                          input.filters.map((f: any) => (
+                            <span
+                              key={f.filterName}
+                              className="px-1.5 py-0.5 rounded text-[8px] font-mono bg-cyan-950/80 border border-cyan-500/40 text-cyan-300"
+                            >
+                              ✓ {f.filterName}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-slate-500 italic">No DSP filters currently attached</span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => handleApplyDspRackToSource(input.inputName)}
+                        disabled={isApplyingDspRack === input.inputName}
+                        className="py-1 px-2.5 rounded-lg bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 cursor-pointer shadow disabled:opacity-50"
+                      >
+                        <Wand2 className="w-3 h-3 text-amber-200" />
+                        <span>{isApplyingDspRack === input.inputName ? 'Applying DSP...' : '1-Click Apply Studio DSP Rack (RNNoise + Comp + Limiter)'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {obsAudioInputs.length === 0 && (
+                  <div className="col-span-2 p-6 text-center text-slate-500 text-xs">
+                    No active OBS audio capture sources detected. Launch OBS Studio above to populate mixer.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: CHORD PROGRESSION VAULT */}
+          {activeProductionTab === 'CHORD_VAULT' && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                <span className="text-xs text-slate-300 font-bold flex items-center gap-1.5">
+                  <Music2 className="w-4 h-4 text-purple-400" />
+                  <span>100+ Production-Ready Chord Progressions & Harmonic Voicings</span>
+                </span>
+
+                {/* Genre Filter Chips */}
+                <div className="flex flex-wrap gap-1">
+                  {['ALL', 'CYBERPUNK_SYNTHWAVE', 'LIQUID_DNB', 'TECHNO_ACID', 'CINEMATIC_AMBIENT', 'DEEP_HOUSE_GARAGE', 'NEUROFUNK_BASS'].map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => setSelectedChordGenre(g)}
+                      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold cursor-pointer transition ${
+                        selectedChordGenre === g
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                      }`}
+                    >
+                      {g.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {chordVault
+                  .filter((p) => selectedChordGenre === 'ALL' || p.genre === selectedChordGenre)
+                  .map((prog) => (
+                    <div
+                      key={prog.id}
+                      className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between space-y-2.5"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-purple-950 text-purple-300 border border-purple-500/30">
+                            {prog.genre.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {prog.key} &middot; {prog.bpm} BPM
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-bold text-white tracking-wide">{prog.name}</h4>
+                        <p className="text-[10px] text-slate-300">{prog.description}</p>
+
+                        {/* Chord Progression Bubbles */}
+                        <div className="flex items-center gap-1.5 pt-1">
+                          {prog.chords?.map((c: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex-1 py-1 px-1 rounded bg-slate-900 border border-slate-750 text-center font-mono text-[10px] font-bold text-cyan-300"
+                            >
+                              <div className="text-[8px] text-slate-500">{prog.romanNumerals?.[idx]}</div>
+                              <div>{c}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleInjectChordProgression(prog)}
+                        className="w-full py-1.5 px-3 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow transition"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+                        <span>Inject Chords into Ableton Live</span>
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

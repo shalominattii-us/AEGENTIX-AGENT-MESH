@@ -231,3 +231,141 @@ export async function getObsStatus(): Promise<ObsStatusSummary> {
     };
   }
 }
+
+export interface ObsAudioInputDetail {
+  inputName: string;
+  inputKind: string;
+  inputVolumeDb: number;
+  inputVolumeMul: number;
+  inputMuted: boolean;
+  filters: Array<{ filterName: string; filterKind: string; filterEnabled: boolean }>;
+}
+
+/**
+ * Returns all audio inputs in OBS with their real-time volume, mute state, and installed filters
+ */
+export async function getObsAudioMixer(): Promise<ObsAudioInputDetail[]> {
+  const proc = await getObsProcessStatus();
+  if (!proc.running) return [];
+
+  try {
+    const listData = await callObs('GetInputList');
+    const allInputs = listData?.inputs || [];
+
+    // Filter to audio inputs
+    const audioInputs = allInputs.filter((i: any) =>
+      i.inputKind.includes('audio') ||
+      i.inputKind.includes('wasapi') ||
+      i.inputKind.includes('mic')
+    );
+
+    const details = await Promise.all(
+      audioInputs.map(async (inp: any) => {
+        const [vol, mute, filters] = await Promise.all([
+          callObs('GetInputVolume', { inputName: inp.inputName }).catch(() => ({ inputVolumeDb: 0, inputVolumeMul: 1 })),
+          callObs('GetInputMute', { inputName: inp.inputName }).catch(() => ({ inputMuted: false })),
+          callObs('GetSourceFilterList', { sourceName: inp.inputName }).catch(() => ({ filters: [] })),
+        ]);
+
+        return {
+          inputName: inp.inputName,
+          inputKind: inp.inputKind,
+          inputVolumeDb: vol.inputVolumeDb ?? 0,
+          inputVolumeMul: vol.inputVolumeMul ?? 1,
+          inputMuted: Boolean(mute.inputMuted),
+          filters: (filters.filters || []).map((f: any) => ({
+            filterName: f.filterName,
+            filterKind: f.filterKind,
+            filterEnabled: Boolean(f.filterEnabled),
+          })),
+        };
+      })
+    );
+
+    return details;
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Sets input volume in dB
+ */
+export async function setObsAudioInputVolume(inputName: string, inputVolumeDb: number) {
+  return callObs('SetInputVolume', { inputName, inputVolumeDb });
+}
+
+/**
+ * Toggles or sets input mute state
+ */
+export async function setObsAudioInputMute(inputName: string, inputMuted: boolean) {
+  return callObs('SetInputMute', { inputName, inputMuted });
+}
+
+/**
+ * Applies a professional 3-tier Studio DSP Rack to an OBS audio input:
+ * 1. AI Noise Suppression (RNNoise)
+ * 2. Studio Master Compressor (3:1, 6ms attack, 60ms release)
+ * 3. True Peak Brickwall Limiter (-1.0 dBTP ceiling protection)
+ */
+export async function applyStudioDspRackToSource(sourceName: string) {
+  const existingFilters = await callObs('GetSourceFilterList', { sourceName }).catch(() => ({ filters: [] }));
+  const filterNames = new Set((existingFilters.filters || []).map((f: any) => f.filterName));
+  const results = [];
+
+  // 1. RNNoise AI Noise Suppression (if mic or voice)
+  if (!filterNames.has('Studio AI Noise Suppression') && (sourceName.toLowerCase().includes('mic') || sourceName.toLowerCase().includes('aux'))) {
+    try {
+      await callObs('CreateSourceFilter', {
+        sourceName,
+        filterName: 'Studio AI Noise Suppression',
+        filterKind: 'noise_suppress_filter',
+        filterSettings: {
+          method: 'rnnoise', // RNNoise neural network
+        },
+      });
+      results.push('RNNoise AI Noise Suppression installed');
+    } catch (_) {}
+  }
+
+  // 2. Studio Compressor
+  if (!filterNames.has('Studio Leveler Compressor')) {
+    try {
+      await callObs('CreateSourceFilter', {
+        sourceName,
+        filterName: 'Studio Leveler Compressor',
+        filterKind: 'compressor_filter',
+        filterSettings: {
+          ratio: 3.0,
+          threshold: -18.0,
+          attack_time: 6,
+          release_time: 60,
+          output_gain: 2.0,
+        },
+      });
+      results.push('Studio Leveler Compressor installed');
+    } catch (_) {}
+  }
+
+  // 3. True Peak Brickwall Limiter (-1.0 dB)
+  if (!filterNames.has('Studio True Peak Limiter')) {
+    try {
+      await callObs('CreateSourceFilter', {
+        sourceName,
+        filterName: 'Studio True Peak Limiter',
+        filterKind: 'limiter_filter',
+        filterSettings: {
+          threshold: -1.0,
+          release_time: 60,
+        },
+      });
+      results.push('Studio True Peak Limiter installed');
+    } catch (_) {}
+  }
+
+  return {
+    sourceName,
+    applied: results,
+    totalFiltersNow: (existingFilters.filters?.length || 0) + results.length,
+  };
+}
