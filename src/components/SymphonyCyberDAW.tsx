@@ -287,8 +287,8 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     };
   }, []);
 
-  // Initialize Web MIDI API
-  useEffect(() => {
+  // Refresh available Web MIDI output ports
+  const refreshMidiPorts = useCallback(() => {
     if (typeof navigator !== 'undefined' && (navigator as any).requestMIDIAccess) {
       (navigator as any).requestMIDIAccess({ sysex: false })
         .then((midiAccess: any) => {
@@ -299,16 +299,41 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
           });
           setMidiDevices(outputs);
           if (outputs.length > 0) {
-            setSelectedMidiDevice(outputs[0].id);
-            midiOutputRef.current = midiAccess.outputs.get(outputs[0].id);
-            setIsMidiActive(true);
+            setSelectedMidiDevice(prev => {
+              const target = outputs.find(o => o.id === prev) ? prev : outputs[0].id;
+              midiOutputRef.current = midiAccess.outputs.get(target);
+              setIsMidiActive(true);
+              return target;
+            });
+            if (onNotify) onNotify(`Detected ${outputs.length} MIDI Port(s): ${outputs.map(o => o.name).join(', ')}`, 'SUCCESS');
           }
+
+          midiAccess.onstatechange = () => {
+            const updated: Array<{ id: string; name: string }> = [];
+            midiAccess.outputs.forEach((port: any) => {
+              updated.push({ id: port.id, name: port.name || `MIDI Port ${port.id}` });
+            });
+            setMidiDevices(updated);
+            if (updated.length > 0) {
+              setSelectedMidiDevice(prev => {
+                const target = updated.find(o => o.id === prev) ? prev : updated[0].id;
+                midiOutputRef.current = midiAccess.outputs.get(target);
+                setIsMidiActive(true);
+                return target;
+              });
+            }
+          };
         })
         .catch(() => {
           console.warn('[WebMIDI] No MIDI Access granted or hardware available');
         });
     }
-  }, []);
+  }, [onNotify]);
+
+  // Initialize Web MIDI API
+  useEffect(() => {
+    refreshMidiPorts();
+  }, [refreshMidiPorts]);
 
   const handleMidiDeviceChange = (devId: string) => {
     setSelectedMidiDevice(devId);
@@ -1106,7 +1131,17 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 block">Ableton MIDI Input Port:</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-slate-400 block">Ableton MIDI Input Port:</label>
+                  <button
+                    onClick={refreshMidiPorts}
+                    type="button"
+                    className="text-[9px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer bg-slate-900 px-1.5 py-0.5 rounded border border-slate-750 transition"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Scan Ports</span>
+                  </button>
+                </div>
                 <select
                   value={selectedMidiDevice}
                   onChange={(e) => handleMidiDeviceChange(e.target.value)}
@@ -1118,7 +1153,7 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
                     </option>
                   ))}
                   {midiDevices.length === 0 && (
-                    <option value="">No MIDI Port Found (Install loopMIDI)</option>
+                    <option value="">No Port Found &middot; Installer Open On Desktop</option>
                   )}
                 </select>
               </div>
