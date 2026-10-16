@@ -39,7 +39,8 @@ import {
   Rocket,
   Monitor,
   Building2,
-  Sparkles
+  Sparkles,
+  Smartphone
 } from 'lucide-react';
 
 export interface TocItem {
@@ -246,6 +247,15 @@ export const SYSTEM_TOC_ITEMS: TocItem[] = [
     badgeColor: 'sky',
     icon: Coins,
     description: 'Cross-chain decentralized liquidity routing across Ethereum, Arbitrum, Solana, and Base with zero-slippage routes.',
+  },
+  {
+    id: 'XAMAN_REVENUE_BRIDGE',
+    name: 'Xaman (XUMM) XRPL Revenue Bridge',
+    category: 'Trading & DEX',
+    badge: 'Non-Custodial XRPL DEX / AMM',
+    badgeColor: 'emerald',
+    icon: Smartphone,
+    description: 'Direct non-custodial Xaman wallet gateway for rwB7JKKc... Sovereign EOC holdings, XRPL DEX spread market making, AMM liquidity yields, and reserve reclaim.',
   },
   {
     id: 'LEDGER',

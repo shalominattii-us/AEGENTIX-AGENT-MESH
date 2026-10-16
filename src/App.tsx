@@ -58,6 +58,7 @@ import { NexusSkillRegistrySuite } from './components/NexusSkillRegistrySuite';
 import { ZeroCapitalFlywheelSuite } from './components/ZeroCapitalFlywheelSuite';
 import { SovereignOriginNodeSuite } from './components/SovereignOriginNodeSuite';
 import { AntiTraffickingSentinelSuite } from './components/AntiTraffickingSentinelSuite';
+import { XamanRevenueBridgeView } from './components/XamanRevenueBridgeView';
 import { 
   WalletBalances, 
   MarketAsset, 
@@ -262,6 +263,12 @@ export default function App() {
       'freedom': 'ANTI_TRAFFICKING_SENTINEL',
       'fincen': 'ANTI_TRAFFICKING_SENTINEL',
       'forced_labor': 'ANTI_TRAFFICKING_SENTINEL',
+      'xaman': 'XAMAN_REVENUE_BRIDGE',
+      'zaman': 'XAMAN_REVENUE_BRIDGE',
+      'zombie': 'XAMAN_REVENUE_BRIDGE',
+      'rwb7': 'XAMAN_REVENUE_BRIDGE',
+      'xumm': 'XAMAN_REVENUE_BRIDGE',
+      'xaman_revenue_bridge': 'XAMAN_REVENUE_BRIDGE',
     };
     if (aliasMap[clean]) return aliasMap[clean];
     const upper = clean.toUpperCase();
@@ -283,7 +290,7 @@ export default function App() {
     return 'PORTAL_LANDING';
   };
 
-  const [centerTab, setCenterTabState] = useState<'PORTAL_LANDING' | 'JARVIS_BUILDER' | 'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'PINNACLE_DERIVATIVES' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM' | 'NEXUS_REGISTRY' | 'ZERO_CAP_FLYWHEEL' | 'SOVEREIGN_ORIGIN_NODE' | 'ANTI_TRAFFICKING_SENTINEL'>(getInitialTab);
+  const [centerTab, setCenterTabState] = useState<'PORTAL_LANDING' | 'JARVIS_BUILDER' | 'LIVE_TELEMETRY' | 'AEGENTIS_OS' | 'HERDR' | 'ROG_CREATOR_SYSTEM' | 'DEVICE_SANDBOX_MAPPING' | 'CYBERNETICS' | 'AEGIS_CIPHER' | 'ENDPOINT_SECURITY' | 'OODA_LOOP' | 'TOP_SIGNALS' | 'SYMPHONY' | 'AGENT_MESH' | 'AUTOHEDGE' | 'RISK_DASHBOARD' | 'GOOGLE_DRIVE' | 'GMAIL' | 'HEATMAP' | 'MOLTBOOK' | 'RESEARCHER' | 'META_COGNITIVE' | 'SPACE_BUNNY_ALPHA' | 'ALL_FEEDS' | 'LEDGER' | 'HALO_CE_VISOR' | 'USER_PROFILE_MAP' | 'AGENTS_OF_CHAOS' | 'SOVEREIGN_COMMAND' | 'FAA_SOV_LICENSE' | 'SOVEREIGN_PORTAL' | 'OMNICYBERDEX' | 'HEALTHCARE_NET' | 'FEDERAL_CRYPTO' | 'PINNACLE_DERIVATIVES' | 'TRADING_COMMAND' | 'PORTFOLIO_GROWTH_PLAN' | 'DAG_FEDERAL_NODE_STATUS' | 'GOV_OPPORTUNITIES' | 'AGENTIC_AMERICA' | 'CYBERGYM_PROGRESSION' | 'GITHUB_FORGE' | 'KOLIBRI_PLATFORM' | 'NEXUS_REGISTRY' | 'ZERO_CAP_FLYWHEEL' | 'SOVEREIGN_ORIGIN_NODE' | 'ANTI_TRAFFICKING_SENTINEL' | 'XAMAN_REVENUE_BRIDGE'>(getInitialTab);
 
   const setCenterTab = (tab: any) => {
     setCenterTabState(tab);
@@ -652,7 +659,7 @@ export default function App() {
     setPendingHardwareTrade(null);
   };
 
-  const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE', 'ANTI_TRAFFICKING_SENTINEL'].includes(centerTab);
+  const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE', 'ANTI_TRAFFICKING_SENTINEL', 'XAMAN_REVENUE_BRIDGE'].includes(centerTab);
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#080B10] text-slate-200 flex flex-col font-mono selection:bg-cyan-500/30 selection:text-cyan-200">
@@ -869,6 +876,14 @@ export default function App() {
             {centerTab === 'SOVEREIGN_ORIGIN_NODE' && (
               <SovereignOriginNodeSuite
                 onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+              />
+            )}
+
+            {/* TAB CONTENT: Xaman (XUMM) XRPL Revenue Bridge & Zombie Wallet Engine */}
+            {centerTab === 'XAMAN_REVENUE_BRIDGE' && (
+              <XamanRevenueBridgeView
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onOpenFederalRegistry={() => setCenterTab('FEDERAL_CRYPTO')}
               />
             )}
           </main>
@@ -1301,6 +1316,14 @@ export default function App() {
               <AntiTraffickingSentinelSuite
                 onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
                 onBackToPortal={() => setCenterTab('PORTAL_LANDING')}
+              />
+            )}
+
+            {/* TAB CONTENT: Xaman (XUMM) XRPL Revenue Bridge & Zombie Wallet Engine */}
+            {centerTab === 'XAMAN_REVENUE_BRIDGE' && (
+              <XamanRevenueBridgeView
+                onNotify={(msg, type) => setAlertBanner({ message: msg, type })}
+                onOpenFederalRegistry={() => setCenterTab('FEDERAL_CRYPTO')}
               />
             )}
 

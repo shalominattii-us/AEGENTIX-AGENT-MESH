@@ -29,6 +29,7 @@ export const MinimalHeader: React.FC<MinimalHeaderProps> = ({
 }) => {
   const primaryNavItems = [
     { id: 'AEGENTIS_OS', label: '🎛️ Full Cyberdeck', tag: 'All 34 Mods' },
+    { id: 'XAMAN_REVENUE_BRIDGE', label: '⚡ Xaman (rwB7)', tag: 'XRPL DEX' },
     { id: 'SOVEREIGN_ORIGIN_NODE', label: 'Origin Node', tag: 'Primary Root' },
     { id: 'ZERO_CAP_FLYWHEEL', label: 'Gas Reserves', tag: `$${gasTankUsd.toFixed(0)}` },
     { id: 'NEXUS_REGISTRY', label: 'Skill Matrix', tag: '2,710' },
