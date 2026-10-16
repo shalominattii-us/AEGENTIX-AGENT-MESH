@@ -16,7 +16,17 @@ import { nexusRegistry } from './src/nexus/nexusRegistryEngine.ts';
 import { ANTI_TRAFFICKING_DATASETS, evaluateAntiTraffickingCompliance } from './src/data/antiTraffickingDatasets.ts';
 import { generateAbletonLiveXml } from './src/utils/abletonLiveSetGenerator.ts';
 import { generateStandardMidiFile } from './src/utils/midiFileGenerator.ts';
-import { ABLETON_REMOTE_SCRIPT_PYTHON, ABLETON_REMOTE_SCRIPT_INIT, ABLETON_OSC_INSTRUCTIONS } from './src/utils/abletonRemoteScript.ts';
+import { 
+  ABLETON_REMOTE_SCRIPT_PYTHON, 
+  ABLETON_REMOTE_SCRIPT_INIT, 
+  ABLETON_OSC_INSTRUCTIONS 
+} from './src/utils/abletonRemoteScript.ts';
+import { 
+  sendLiveCommand,
+  getAbletonProcessStatus,
+  launchAbleton,
+  ABLETON_EXE_PATH
+} from './src/utils/abletonNodeBridge.ts';
 
 dotenv.config();
 
@@ -8686,6 +8696,137 @@ app.post('/api/cyberdaw/ableton/osc-trigger', (req, res) => {
     targetPort: 11000,
     timestamp: new Date().toISOString(),
   });
+});
+
+// GET /api/cyberdaw/ableton/status: Check Ableton Live 12 process and live socket bridge
+app.get('/api/cyberdaw/ableton/status', async (_req, res) => {
+  try {
+    const procStatus = await getAbletonProcessStatus();
+    let socketConnected = false;
+    let liveState: any = null;
+
+    if (procStatus.running) {
+      try {
+        liveState = await sendLiveCommand('song.get_state', {}, 600);
+        socketConnected = true;
+      } catch (sockErr) {
+        // Process is up, but control surface may still be starting or initializing
+        socketConnected = false;
+      }
+    }
+
+    res.json({
+      success: true,
+      process: procStatus,
+      socketBridge: {
+        host: '127.0.0.1',
+        port: 11000,
+        connected: socketConnected,
+      },
+      liveState,
+      executablePath: ABLETON_EXE_PATH,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/cyberdaw/ableton/launch: Launch Ableton Live 12 executable on host machine
+app.post('/api/cyberdaw/ableton/launch', async (req, res) => {
+  try {
+    const { projectFile } = req.body || {};
+    const result = await launchAbleton(projectFile);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to launch Ableton Live: ' + err.message });
+  }
+});
+
+// POST /api/cyberdaw/ableton/call: Execute any Live API method directly via JSON-RPC
+app.post('/api/cyberdaw/ableton/call', async (req, res) => {
+  try {
+    const { method, params } = req.body || {};
+    if (!method) {
+      return res.status(400).json({ error: 'Missing method parameter' });
+    }
+    const result = await sendLiveCommand(method, params || {}, 3000);
+    res.json({ success: true, method, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Ableton Live API call failed: ' + err.message });
+  }
+});
+
+// POST /api/cyberdaw/ableton/inject-agent-stem: High-level generative pattern injection into Live
+app.post('/api/cyberdaw/ableton/inject-agent-stem', async (req, res) => {
+  try {
+    const {
+      trackName = 'CyberDAW Sub-Bass',
+      baseMidiNote = 36,
+      steps = [],
+      volume = 0.85,
+      pan = 0.0,
+      slotIndex = 0,
+    } = req.body || {};
+
+    // 1. Get current state to check if track exists
+    const state = await sendLiveCommand('song.get_state', {}, 1500);
+    let targetTrackIdx = state.tracks.findIndex((t: any) => t.name === trackName);
+
+    // 2. If track doesn't exist, create a new MIDI track
+    if (targetTrackIdx === -1) {
+      const created = await sendLiveCommand('tracks.create_midi', { name: trackName });
+      targetTrackIdx = created.created_index;
+    }
+
+    // 3. Set track volume & pan
+    await sendLiveCommand('tracks.set_volume', { track_index: targetTrackIdx, value: volume });
+    await sendLiveCommand('tracks.set_pan', { track_index: targetTrackIdx, value: pan });
+
+    // 4. Create clip (4 beats = 1 bar)
+    await sendLiveCommand('clips.create', {
+      track_index: targetTrackIdx,
+      slot_index: slotIndex,
+      length: 4.0,
+      name: `${trackName} Loop`,
+    });
+
+    // 5. Generate notes from 16 steps
+    const notes: Array<{ pitch: number; start_time: number; duration: number; velocity: number }> = [];
+    steps.forEach((active: boolean, idx: number) => {
+      if (active) {
+        notes.push({
+          pitch: Number(baseMidiNote),
+          start_time: idx * 0.25,
+          duration: 0.20,
+          velocity: 100 + (idx % 4 === 0 ? 15 : 0),
+        });
+      }
+    });
+
+    if (notes.length > 0) {
+      await sendLiveCommand('clips.add_notes', {
+        track_index: targetTrackIdx,
+        slot_index: slotIndex,
+        notes,
+      });
+    }
+
+    // 6. Fire the clip in Ableton Live!
+    await sendLiveCommand('clips.fire', {
+      track_index: targetTrackIdx,
+      slot_index: slotIndex,
+    });
+
+    res.json({
+      success: true,
+      trackIndex: targetTrackIdx,
+      slotIndex,
+      notesInjected: notes.length,
+      trackName,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to inject agent stem: ' + err.message });
+  }
 });
 
 // ============================================

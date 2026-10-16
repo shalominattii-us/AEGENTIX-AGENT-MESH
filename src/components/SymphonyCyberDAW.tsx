@@ -244,6 +244,49 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const currentStepRef = useRef(0);
   const isPlayingRef = useRef(false);
 
+  // Ableton Live 12 Real-Time IPC & Control Surface Telemetry
+  const [abletonStatus, setAbletonStatus] = useState<{
+    running: boolean;
+    pid?: number;
+    socketConnected: boolean;
+    liveBpm?: number;
+    livePlaying?: boolean;
+    liveTracksCount?: number;
+  }>({ running: false, socketConnected: false });
+  const [isLaunchingAbleton, setIsLaunchingAbleton] = useState(false);
+  const [isInjectingToLive, setIsInjectingToLive] = useState(false);
+
+  // Poll Ableton process & socket state every 3 seconds
+  useEffect(() => {
+    let isMounted = true;
+    const checkAbleton = async () => {
+      try {
+        const res = await fetch('/api/cyberdaw/ableton/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setAbletonStatus({
+              running: Boolean(data.process?.running),
+              pid: data.process?.pid,
+              socketConnected: Boolean(data.socketBridge?.connected),
+              liveBpm: data.liveState?.tempo,
+              livePlaying: data.liveState?.is_playing,
+              liveTracksCount: data.liveState?.tracks?.length,
+            });
+          }
+        }
+      } catch (err) {
+        // server offline or polling error
+      }
+    };
+    checkAbleton();
+    const interval = setInterval(checkAbleton, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   // Initialize Web MIDI API
   useEffect(() => {
     if (typeof navigator !== 'undefined' && (navigator as any).requestMIDIAccess) {
@@ -676,6 +719,91 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     if (onNotify) onNotify(`Copied ${label} to clipboard!`, 'INFO');
   };
 
+  // Launch Ableton Live 12 on Host
+  const handleLaunchAbleton = async () => {
+    setIsLaunchingAbleton(true);
+    try {
+      const res = await fetch('/api/cyberdaw/ableton/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectFile: 'OmniCyberDAW_Live_Master.als' }),
+      });
+      const data = await res.json();
+      if (onNotify) onNotify(data.message || 'Launched Ableton Live 12!', 'SUCCESS');
+    } catch (err: any) {
+      if (onNotify) onNotify('Failed to launch Ableton Live: ' + err.message, 'ALERT');
+    } finally {
+      setIsLaunchingAbleton(false);
+    }
+  };
+
+  // Live Transport Controls (Play / Stop / Record) via JSON-RPC
+  const handleLiveTransport = async (action: 'play' | 'stop' | 'record') => {
+    try {
+      const method = action === 'play' ? 'song.play' : action === 'stop' ? 'song.stop' : 'song.record';
+      const res = await fetch('/api/cyberdaw/ableton/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onNotify) onNotify(`Ableton Live Engine: ${action.toUpperCase()} command dispatched!`, 'SUCCESS');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`Live API error: ${err.message}`, 'ALERT');
+    }
+  };
+
+  // Synchronize CyberDAW BPM to Ableton Live
+  const handleLiveSyncBpm = async () => {
+    try {
+      const res = await fetch('/api/cyberdaw/ableton/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'song.set_tempo', params: { bpm } }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onNotify) onNotify(`Ableton Live Tempo Synchronized: ${bpm} BPM`, 'SUCCESS');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`Live BPM sync error: ${err.message}`, 'ALERT');
+    }
+  };
+
+  // High-level: Inject all 6 Agent Stems into Ableton Live as active tracks & clips
+  const handleInjectAllStemsToLive = async () => {
+    setIsInjectingToLive(true);
+    let injected = 0;
+    try {
+      for (const track of tracks) {
+        const res = await fetch('/api/cyberdaw/ableton/inject-agent-stem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trackName: track.name,
+            baseMidiNote: track.baseMidiNote,
+            steps: track.steps,
+            volume: track.volume,
+            pan: track.pan,
+            slotIndex: 0,
+          }),
+        });
+        if (res.ok) injected++;
+      }
+      if (onNotify) onNotify(`Directly injected ${injected} agent stems & clips into Ableton Live!`, 'SUCCESS');
+    } catch (err: any) {
+      if (onNotify) onNotify(`Live injection error: ${err.message}`, 'ALERT');
+    } finally {
+      setIsInjectingToLive(false);
+    }
+  };
+
   // Live Oscilloscope Visualizer Animation
   useEffect(() => {
     let animId: number;
@@ -1014,14 +1142,26 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
               <div className="flex items-center justify-between text-slate-300 font-bold">
                 <span className="flex items-center gap-1.5 text-emerald-300">
                   <Terminal className="w-3.5 h-3.5" />
-                  <span>AbletonOSC & Remote Scripts</span>
+                  <span>Ableton Live Script Bridge</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">Port :11000 UDP</span>
+                <span className="text-[10px] text-slate-400 font-mono">TCP :11000</span>
               </div>
 
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Connect AbletonOSC to control Ableton Live transport, track volume, pan, and clip triggers from CyberDAW without latency.
-              </p>
+              <div className="p-2 rounded bg-slate-900/60 border border-slate-800 text-[10px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Live 12 Process:</span>
+                  <span className={abletonStatus.running ? 'text-emerald-400 font-bold flex items-center gap-1' : 'text-slate-500'}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${abletonStatus.running ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                    {abletonStatus.running ? `RUNNING (PID ${abletonStatus.pid})` : 'NOT RUNNING'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Live API Bridge:</span>
+                  <span className={abletonStatus.socketConnected ? 'text-cyan-400 font-bold' : 'text-amber-400'}>
+                    {abletonStatus.socketConnected ? 'CONNECTED' : abletonStatus.running ? 'READY FOR SCRIPT' : 'STANDBY'}
+                  </span>
+                </div>
+              </div>
 
               <div className="flex items-center gap-2 pt-0.5">
                 <button
@@ -1040,6 +1180,84 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
                   <span>OSC Protocol</span>
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Full-Scale Live API Interactive Control Bar */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-950/40 via-slate-900/90 to-cyan-950/40 border border-purple-500/40 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-500/20 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white tracking-wide flex items-center gap-2">
+                    <span>ABLETON LIVE 12 &middot; REAL-TIME LIVE API AUTOMATION ENGINE</span>
+                    {abletonStatus.running && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                        PID: {abletonStatus.pid}
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-[10px] text-slate-400">
+                    Direct programmatic control over Ableton Live tracks, clips, notes, parameters, and transport via native Python JSON-RPC.
+                  </p>
+                </div>
+              </div>
+
+              {/* Host Launch Button */}
+              <button
+                onClick={handleLaunchAbleton}
+                disabled={isLaunchingAbleton}
+                className="py-1.5 px-3 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20 cursor-pointer transition disabled:opacity-50"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{isLaunchingAbleton ? 'Launching...' : 'Launch Ableton Live 12'}</span>
+              </button>
+            </div>
+
+            {/* Direct Action Toolbar */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <button
+                onClick={() => handleLiveTransport('play')}
+                className="py-1.5 px-3 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition shadow"
+              >
+                <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                <span>Play Live</span>
+              </button>
+
+              <button
+                onClick={() => handleLiveTransport('stop')}
+                className="py-1.5 px-3 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-600/50 text-rose-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition shadow"
+              >
+                <Square className="w-3 h-3 text-rose-400 fill-rose-400" />
+                <span>Stop Live</span>
+              </button>
+
+              <button
+                onClick={() => handleLiveTransport('record')}
+                className="py-1.5 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-red-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition"
+              >
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                <span>Toggle Live Rec</span>
+              </button>
+
+              <button
+                onClick={handleLiveSyncBpm}
+                className="py-1.5 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition"
+              >
+                <Gauge className="w-3 h-3 text-cyan-400" />
+                <span>Sync {bpm} BPM to Live</span>
+              </button>
+
+              <button
+                onClick={handleInjectAllStemsToLive}
+                disabled={isInjectingToLive}
+                className="ml-auto py-1.5 px-3.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer transition disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+                <span>{isInjectingToLive ? 'Injecting Notes...' : 'Inject All 6 Agent Stems into Live Clips'}</span>
+              </button>
             </div>
           </div>
         </div>
