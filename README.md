@@ -165,11 +165,14 @@ git remote -v
 # Push to primary origin
 git push origin main
 
-# Push to CYBERCORE mirror
+# Push to secondary mirror
+git push mirror main
+
+# Push to CYBERCORE AI Studio
 git push cybercore main
 
-# Push to Agent Mesh repository
-git push mesh main
+# Push to Agent Mesh repository (isolated branch)
+git push mesh main:super-agent-wallet
 ```
 
 ---
