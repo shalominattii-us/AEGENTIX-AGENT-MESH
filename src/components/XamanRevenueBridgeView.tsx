@@ -827,35 +827,80 @@ export const XamanRevenueBridgeView: React.FC<XamanRevenueBridgeViewProps> = ({
               </div>
             </div>
 
-            {/* Deep Link Buttons */}
-            <div className="space-y-2">
-              <a
-                href={activePayload.xamanDeepLink}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition"
-              >
-                <span>Open in Xaman (App / Web)</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+            {/* Alternative Direct Signers & Guidance */}
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between text-slate-300 font-semibold">
+                <span className="flex items-center gap-1.5 text-amber-400">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Xaman Sign Link Note</span>
+                </span>
+                <a
+                  href="https://apps.xaman.dev"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Get Free API Key</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Direct <code className="text-cyan-300">xumm.app/sign</code> cloud links require an active Developer API Key from Xaman. Alternatively, you can connect your Xaman wallet directly to <strong>XRP Toolkit</strong> or <strong>XPMarket</strong> below:
+              </p>
 
-              <button
-                onClick={handleSimulateSign}
-                disabled={isSignedSimulated}
-                className={`w-full py-2 px-4 rounded-xl text-xs font-mono font-medium transition border ${
-                  isSignedSimulated
-                    ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                }`}
-              >
-                {isSignedSimulated ? '✓ Transaction Authorized on XRPL (Simulated)' : 'Simulate Signing (Instant Dev Mode)'}
-              </button>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <a
+                  href="https://www.xrptoolkit.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-[11px] border border-slate-700 transition"
+                >
+                  <span>XRP Toolkit</span>
+                  <ExternalLink className="w-3 h-3 text-cyan-400" />
+                </a>
+
+                <a
+                  href="https://xpmarket.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-[11px] border border-slate-700 transition"
+                >
+                  <span>XPMarket AMM</span>
+                  <ExternalLink className="w-3 h-3 text-cyan-400" />
+                </a>
+              </div>
+            </div>
+
+            {/* Actions & Simulation */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleCopy(JSON.stringify(activePayload.txJson, null, 2), 'Transaction JSON')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700 transition"
+                >
+                  <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Copy Transaction JSON</span>
+                </button>
+
+                <button
+                  onClick={handleSimulateSign}
+                  disabled={isSignedSimulated}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-mono font-medium transition border ${
+                    isSignedSimulated
+                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  }`}
+                >
+                  {isSignedSimulated ? '✓ Authorized (Sim)' : 'Simulate (Dev Mode)'}
+                </button>
+              </div>
             </div>
 
             {/* Tx JSON Inspector */}
             <details className="text-[10px] font-mono text-slate-400 bg-slate-950/90 p-2.5 rounded-lg border border-slate-800">
-              <summary className="cursor-pointer text-cyan-400 font-semibold select-none">
-                Inspect Raw XRPL Transaction Payload
+              <summary className="cursor-pointer text-cyan-400 font-semibold select-none flex items-center justify-between">
+                <span>Inspect Raw XRPL Transaction Payload</span>
+                <span className="text-[9px] text-slate-500 uppercase">AMMDeposit</span>
               </summary>
               <pre className="mt-2 overflow-x-auto text-slate-300 leading-tight">
                 {JSON.stringify(activePayload.txJson, null, 2)}

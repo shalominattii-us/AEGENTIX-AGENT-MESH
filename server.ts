@@ -8470,10 +8470,49 @@ app.post('/api/xaman/create-payload', async (req, res) => {
     };
   }
 
-  // Create Xaman sign request URL
-  const xamanDeepLink = `https://xumm.app/sign/${payloadId}`;
-  
-  // Generate QR code data URL
+  // Check for Xaman / Xumm developer credentials in env
+  let xamanDeepLink = `https://xumm.app/sign/${payloadId}`;
+  let isOfficialXummPayload = false;
+  let xummError: string | null = null;
+
+  const xummApiKey = process.env.XUMM_API_KEY;
+  const xummApiSecret = process.env.XUMM_API_SECRET;
+
+  if (xummApiKey && xummApiSecret) {
+    try {
+      const xummRes = await fetch('https://xumm.app/api/v1/platform/payload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': xummApiKey,
+          'X-API-Secret': xummApiSecret,
+        },
+        body: JSON.stringify({
+          txjson: txJson,
+          options: {
+            submit: true,
+            multisign: false,
+            expire: 1440,
+          },
+          custom_meta: {
+            identifier: payloadId,
+            instruction: description,
+          },
+        }),
+      });
+      const xummData = await xummRes.json();
+      if (xummData?.next?.always) {
+        xamanDeepLink = xummData.next.always;
+        isOfficialXummPayload = true;
+      } else if (xummData?.error) {
+        xummError = xummData.error.message || 'Xumm API Error';
+      }
+    } catch (e: any) {
+      xummError = e?.message || 'Failed to contact Xumm Platform API';
+    }
+  }
+
+  // Generate QR code data URL (encodes the sign link or direct toolkit URL)
   let qrDataUrl = '';
   try {
     qrDataUrl = await QRCode.toDataURL(xamanDeepLink, {
@@ -8504,6 +8543,37 @@ app.post('/api/xaman/create-payload', async (req, res) => {
   res.json({
     success: true,
     payload: payloadRecord,
+    isOfficialXummPayload,
+    hasXummCredentials: Boolean(xummApiKey && xummApiSecret),
+    xummError,
+    recommendedTools: [
+      {
+        name: 'XRP Toolkit',
+        url: 'https://www.xrptoolkit.com',
+        description: 'Official web gateway for Xaman. Connect via QR scan to sign AMM deposits, DEX offers, and trustlines without an API key.',
+      },
+      {
+        name: 'XPMarket AMM Pools',
+        url: 'https://xpmarket.com',
+        description: 'Direct XRPL XLS-30 AMM pool liquidity manager with instant Xaman QR wallet connect.',
+      },
+      {
+        name: 'Xaman Developer Console',
+        url: 'https://apps.xaman.dev',
+        description: 'Create a free developer app to get XUMM_API_KEY & XUMM_API_SECRET for automated push links.',
+      },
+    ],
+  });
+});
+
+// POST /api/xaman/save-credentials
+app.post('/api/xaman/save-credentials', (req, res) => {
+  const { apiKey, apiSecret } = req.body || {};
+  if (apiKey) process.env.XUMM_API_KEY = apiKey.trim();
+  if (apiSecret) process.env.XUMM_API_SECRET = apiSecret.trim();
+  res.json({
+    success: true,
+    hasXummCredentials: Boolean(process.env.XUMM_API_KEY && process.env.XUMM_API_SECRET),
   });
 });
 
