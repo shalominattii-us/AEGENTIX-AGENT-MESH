@@ -28,6 +28,7 @@ import {
 import { SovereignSeal } from './SovereignSeal';
 
 interface PublicLandingPortalProps {
+  onLaunchCyberdeck?: () => void;
   onLaunchOriginNode?: () => void;
   onLaunchZeroCap?: () => void;
   onLaunchSkillMatrix?: () => void;
@@ -41,6 +42,7 @@ interface PublicLandingPortalProps {
 }
 
 export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
+  onLaunchCyberdeck,
   onLaunchOriginNode,
   onLaunchZeroCap,
   onLaunchSkillMatrix,
@@ -129,10 +131,10 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={onLaunchOriginNode}
+              onClick={onLaunchCyberdeck || onLaunchOriginNode}
               className="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-semibold text-xs transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
-              <span>Launch Cockpit</span>
+              <span>Launch Cockpit (All 34 Modules)</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -162,11 +164,11 @@ export const PublicLandingPortal: React.FC<PublicLandingPortalProps> = ({
 
           <div className="flex flex-wrap justify-center gap-3 pt-4">
             <button
-              onClick={onLaunchOriginNode}
+              onClick={onLaunchCyberdeck || onLaunchOriginNode}
               className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-sm shadow-sm shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
             >
               <Monitor className="w-4 h-4" />
-              <span>Open Sovereign Cockpit</span>
+              <span>Open Sovereign Cockpit (34 Modules)</span>
             </button>
 
             <button

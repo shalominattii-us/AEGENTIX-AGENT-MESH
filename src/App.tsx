@@ -655,7 +655,7 @@ export default function App() {
   const isOutwardPortalMode = ['PORTAL_LANDING', 'HEALTHCARE_NET', 'PINNACLE_DERIVATIVES', 'JARVIS_BUILDER', 'TRADING_COMMAND', 'LEDGER', 'NEXUS_REGISTRY', 'ZERO_CAP_FLYWHEEL', 'SOVEREIGN_ORIGIN_NODE', 'ANTI_TRAFFICKING_SENTINEL'].includes(centerTab);
 
   return (
-    <div className="min-h-screen bg-[#080B10] text-slate-200 flex flex-col font-mono selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#080B10] text-slate-200 flex flex-col font-mono selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Dynamic Header: Minimalist Editorial Header in Portal / Origin Mode vs Technical Header in Cyberdeck */}
       {isOutwardPortalMode ? (
         <MinimalHeader
@@ -791,6 +791,7 @@ export default function App() {
       {isOutwardPortalMode ? (
         centerTab === 'PORTAL_LANDING' ? (
           <PublicLandingPortal
+            onLaunchCyberdeck={() => setCenterTab('AEGENTIS_OS')}
             onLaunchOriginNode={() => setCenterTab('SOVEREIGN_ORIGIN_NODE')}
             onLaunchZeroCap={() => setCenterTab('ZERO_CAP_FLYWHEEL')}
             onLaunchSkillMatrix={() => setCenterTab('NEXUS_REGISTRY')}

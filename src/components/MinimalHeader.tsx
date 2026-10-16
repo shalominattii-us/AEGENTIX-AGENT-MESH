@@ -28,6 +28,7 @@ export const MinimalHeader: React.FC<MinimalHeaderProps> = ({
   gasTankUsd,
 }) => {
   const primaryNavItems = [
+    { id: 'AEGENTIS_OS', label: '🎛️ Full Cyberdeck', tag: 'All 34 Mods' },
     { id: 'SOVEREIGN_ORIGIN_NODE', label: 'Origin Node', tag: 'Primary Root' },
     { id: 'ZERO_CAP_FLYWHEEL', label: 'Gas Reserves', tag: `$${gasTankUsd.toFixed(0)}` },
     { id: 'NEXUS_REGISTRY', label: 'Skill Matrix', tag: '2,710' },
@@ -90,6 +91,16 @@ export const MinimalHeader: React.FC<MinimalHeaderProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Gas: {gasPriceGwei} Gwei</span>
           </div>
+
+          <a
+            href="http://localhost:3001/dashboard/"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20 hover:bg-blue-500/20 transition-all cursor-pointer"
+          >
+            <span>Qualixar OS</span>
+            <ExternalLink className="w-3 h-3 opacity-70" />
+          </a>
 
           <a
             href="http://localhost:8890/ui"
