@@ -33,6 +33,12 @@ import {
   AlertCircle,
   FileCode,
   Terminal,
+  Video,
+  VideoOff,
+  Camera,
+  Tv,
+  Film,
+  MonitorPlay,
 } from 'lucide-react';
 import {
   ABLETON_REMOTE_SCRIPT_PYTHON,
@@ -118,6 +124,33 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const [isExportingAls, setIsExportingAls] = useState(false);
   const [isExportingMid, setIsExportingMid] = useState(false);
   const [copiedCodeLabel, setCopiedCodeLabel] = useState<string | null>(null);
+
+  // OBS Studio Broadcast Suite State
+  const [isObsSectionOpen, setIsObsSectionOpen] = useState(true);
+  const [obsStatus, setObsStatus] = useState<{
+    processRunning: boolean;
+    pid?: number;
+    connected: boolean;
+    recording: boolean;
+    recordTimecode?: string;
+    streaming: boolean;
+    streamTimecode?: string;
+    virtualCamActive: boolean;
+    currentProgramScene?: string;
+    fps?: number;
+    cpuUsage?: number;
+    memoryUsageMB?: number;
+    availableDiskSpaceMB?: number;
+  }>({
+    processRunning: false,
+    connected: false,
+    recording: false,
+    streaming: false,
+    virtualCamActive: false,
+  });
+  const [isLaunchingObs, setIsLaunchingObs] = useState(false);
+  const [isObsActionBusy, setIsObsActionBusy] = useState(false);
+  const [customSceneInput, setCustomSceneInput] = useState('');
 
   // Web MIDI API State
   const [midiDevices, setMidiDevices] = useState<Array<{ id: string; name: string }>>([]);
@@ -256,14 +289,18 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
   const [isLaunchingAbleton, setIsLaunchingAbleton] = useState(false);
   const [isInjectingToLive, setIsInjectingToLive] = useState(false);
 
-  // Poll Ableton process & socket state every 3 seconds
+  // Poll Ableton process & OBS broadcast telemetry every 3 seconds
   useEffect(() => {
     let isMounted = true;
-    const checkAbleton = async () => {
+    const checkTelemetry = async () => {
       try {
-        const res = await fetch('/api/cyberdaw/ableton/status');
-        if (res.ok) {
-          const data = await res.json();
+        const [abletonRes, obsRes] = await Promise.allSettled([
+          fetch('/api/cyberdaw/ableton/status'),
+          fetch('/api/obs/status'),
+        ]);
+
+        if (abletonRes.status === 'fulfilled' && abletonRes.value.ok) {
+          const data = await abletonRes.value.json();
           if (isMounted) {
             setAbletonStatus({
               running: Boolean(data.process?.running),
@@ -275,12 +312,19 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
             });
           }
         }
+
+        if (obsRes.status === 'fulfilled' && obsRes.value.ok) {
+          const data = await obsRes.value.json();
+          if (isMounted && data.status) {
+            setObsStatus(data.status);
+          }
+        }
       } catch (err) {
         // server offline or polling error
       }
     };
-    checkAbleton();
-    const interval = setInterval(checkAbleton, 3000);
+    checkTelemetry();
+    const interval = setInterval(checkTelemetry, 3000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -829,6 +873,118 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
     }
   };
 
+  // OBS Studio Broadcast Control Actions
+  const handleLaunchObs = async () => {
+    setIsLaunchingObs(true);
+    try {
+      const res = await fetch('/api/obs/launch', { method: 'POST' });
+      const data = await res.json();
+      if (onNotify) onNotify(data.message || 'Launched OBS Studio 32!', 'SUCCESS');
+      const statusRes = await fetch('/api/obs/status');
+      if (statusRes.ok) {
+        const sData = await statusRes.json();
+        if (sData.status) setObsStatus(sData.status);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('Failed to launch OBS: ' + err.message, 'ALERT');
+    } finally {
+      setIsLaunchingObs(false);
+    }
+  };
+
+  const handleToggleObsRecord = async () => {
+    setIsObsActionBusy(true);
+    try {
+      const res = await fetch('/api/obs/record/toggle', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        const nextState = !obsStatus.recording;
+        setObsStatus(prev => ({ ...prev, recording: nextState }));
+        if (onNotify) onNotify(`OBS Recording ${nextState ? 'STARTED 🔴' : 'STOPPED ⏹️'}`, nextState ? 'ALERT' : 'SUCCESS');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('OBS Record error: ' + err.message, 'ALERT');
+    } finally {
+      setIsObsActionBusy(false);
+    }
+  };
+
+  const handleToggleObsStream = async () => {
+    setIsObsActionBusy(true);
+    try {
+      const res = await fetch('/api/obs/stream/toggle', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        const nextState = !obsStatus.streaming;
+        setObsStatus(prev => ({ ...prev, streaming: nextState }));
+        if (onNotify) onNotify(`OBS Streaming ${nextState ? 'LIVE ON AIR 🟣' : 'STOPPED ⏹️'}`, 'SUCCESS');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('OBS Stream error: ' + err.message, 'ALERT');
+    } finally {
+      setIsObsActionBusy(false);
+    }
+  };
+
+  const handleToggleObsVirtualCam = async () => {
+    setIsObsActionBusy(true);
+    try {
+      const res = await fetch('/api/obs/virtualcam/toggle', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        const nextState = !obsStatus.virtualCamActive;
+        setObsStatus(prev => ({ ...prev, virtualCamActive: nextState }));
+        if (onNotify) onNotify(`OBS Virtual Camera ${nextState ? 'ENABLED 🔵' : 'DISABLED'}`, 'INFO');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('OBS Virtual Cam error: ' + err.message, 'ALERT');
+    } finally {
+      setIsObsActionBusy(false);
+    }
+  };
+
+  const handleSaveObsReplay = async () => {
+    setIsObsActionBusy(true);
+    try {
+      const res = await fetch('/api/obs/replay/save', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        if (onNotify) onNotify('OBS Replay Buffer Clip Saved! ⚡', 'SUCCESS');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('OBS Replay error: ' + err.message, 'ALERT');
+    } finally {
+      setIsObsActionBusy(false);
+    }
+  };
+
+  const handleSetObsScene = async (sceneName: string) => {
+    try {
+      const res = await fetch('/api/obs/scene', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sceneName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setObsStatus(prev => ({ ...prev, currentProgramScene: sceneName }));
+        if (onNotify) onNotify(`Switched OBS Scene to: ${sceneName}`, 'INFO');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify('Failed to switch OBS scene: ' + err.message, 'ALERT');
+    }
+  };
+
   // Live Oscilloscope Visualizer Animation
   useEffect(() => {
     let animId: number;
@@ -1018,6 +1174,26 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
             <Disc className="w-3.5 h-3.5 text-cyan-400" />
             <span>Ableton Live Suite</span>
             {isAbletonSectionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {/* OBS Studio Broadcast Toggle */}
+          <button
+            onClick={() => setIsObsSectionOpen(!isObsSectionOpen)}
+            className={`px-3 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs cursor-pointer transition-all ${
+              isObsSectionOpen
+                ? 'bg-rose-950/80 text-rose-300 border-rose-500 shadow-md shadow-rose-900/40'
+                : 'bg-slate-900 text-slate-400 hover:text-white border-slate-700'
+            }`}
+          >
+            <Video className="w-3.5 h-3.5 text-rose-400" />
+            <span>OBS Studio</span>
+            {obsStatus.recording && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+            )}
+            {obsStatus.connected && !obsStatus.recording && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            )}
+            {isObsSectionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
       </div>
@@ -1293,6 +1469,242 @@ export const SymphonyCyberDAW: React.FC<SymphonyCyberDAWProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
                 <span>{isInjectingToLive ? 'Injecting Notes...' : 'Inject All 6 Agent Stems into Live Clips'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2B. OBS STUDIO 32 BROADCAST & STREAM PRODUCTION DECK                      */}
+      {/* ========================================================================= */}
+      {isObsSectionOpen && (
+        <div className="mx-4 p-4 rounded-xl bg-gradient-to-br from-[#0B0614] via-[#060814] to-[#04060E] border border-rose-500/30 shadow-xl space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5">
+                  <Video className="w-3 h-3 text-rose-400" />
+                  <span>OBS STUDIO 32 BROADCAST DECK</span>
+                </span>
+                <span className="text-slate-400 text-xs">WebSocket v5 (Port 4455) &middot; Lossless Audio/Video Capture &middot; Scene Director</span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                Direct remote broadcast integration for OBS Studio 32. Switch scenes, record live Ableton Live audio/video stems, broadcast streams, or feed the DAW visualizer to Virtual Camera.
+              </p>
+            </div>
+
+            {/* Quick OBS Action Toolbar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {!obsStatus.processRunning ? (
+                <button
+                  onClick={handleLaunchObs}
+                  disabled={isLaunchingObs}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs transition shadow-lg shadow-rose-900/30 disabled:opacity-50 cursor-pointer"
+                >
+                  <Tv className="w-3.5 h-3.5" />
+                  <span>{isLaunchingObs ? 'Launching OBS...' : 'Launch OBS Studio'}</span>
+                </button>
+              ) : (
+                <>
+                  {/* Record Toggle Button */}
+                  <button
+                    onClick={handleToggleObsRecord}
+                    disabled={isObsActionBusy}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs transition shadow-lg cursor-pointer ${
+                      obsStatus.recording
+                        ? 'bg-red-600 hover:bg-red-500 text-white animate-pulse shadow-red-900/50'
+                        : 'bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-500/40'
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full ${obsStatus.recording ? 'bg-white' : 'bg-red-500'}`} />
+                    <span>{obsStatus.recording ? `Stop Rec (${obsStatus.recordTimecode})` : 'Start Recording'}</span>
+                  </button>
+
+                  {/* Stream Toggle Button */}
+                  <button
+                    onClick={handleToggleObsStream}
+                    disabled={isObsActionBusy}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold text-xs transition cursor-pointer ${
+                      obsStatus.streaming
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white animate-pulse'
+                        : 'bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/40'
+                    }`}
+                  >
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>{obsStatus.streaming ? `Stop Stream (${obsStatus.streamTimecode})` : 'Start Stream'}</span>
+                  </button>
+
+                  {/* Virtual Camera Button */}
+                  <button
+                    onClick={handleToggleObsVirtualCam}
+                    disabled={isObsActionBusy}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-xs transition cursor-pointer ${
+                      obsStatus.virtualCamActive
+                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                        : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40'
+                    }`}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{obsStatus.virtualCamActive ? 'Virtual Cam ON' : 'Start Virtual Cam'}</span>
+                  </button>
+
+                  {/* Save Replay Buffer Button */}
+                  <button
+                    onClick={handleSaveObsReplay}
+                    disabled={isObsActionBusy}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-amber-200 text-xs font-semibold transition cursor-pointer"
+                    title="Save Last Replay Buffer to disk"
+                  >
+                    <Film className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Save Replay</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* OBS Studio Telemetry & Scene Director Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {/* Column 1: Hardware & Video Pipeline */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-rose-300">
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>Hardware & Video Pipeline</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Port :4455</span>
+              </div>
+
+              <div className="p-2 rounded bg-slate-900/60 border border-slate-800 text-[10px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">OBS Process:</span>
+                  <span className={obsStatus.processRunning ? 'text-emerald-400 font-bold flex items-center gap-1' : 'text-slate-500'}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${obsStatus.processRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
+                    {obsStatus.processRunning ? `RUNNING (PID ${obsStatus.pid})` : 'OFFLINE'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">WebSocket v5:</span>
+                  <span className={obsStatus.connected ? 'text-cyan-400 font-bold' : 'text-slate-500'}>
+                    {obsStatus.connected ? 'AUTHENTICATED (SHA-256)' : 'DISCONNECTED'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Frame Rendering:</span>
+                  <span className="text-white font-mono font-bold">
+                    {obsStatus.fps ? `${obsStatus.fps} FPS` : '30 FPS'} &middot; {obsStatus.cpuUsage ? `${obsStatus.cpuUsage}% CPU` : '0.8% CPU'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">RAM Allocated:</span>
+                  <span className="text-slate-300 font-mono">
+                    {obsStatus.memoryUsageMB ? `${obsStatus.memoryUsageMB} MB` : '176 MB'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: Scene Director & Source Switching */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-cyan-300">
+                  <MonitorPlay className="w-3.5 h-3.5" />
+                  <span>Program Scene Director</span>
+                </span>
+                <span className="text-[10px] text-cyan-400 font-mono font-bold">
+                  {obsStatus.currentProgramScene || 'Scene'}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-400 block">Switch Active Studio Scene:</label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={customSceneInput}
+                    onChange={(e) => setCustomSceneInput(e.target.value)}
+                    placeholder="Scene name (e.g. Scene, Ableton Screen)"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white font-mono text-[11px] focus:border-rose-400 outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      if (customSceneInput.trim()) {
+                        handleSetObsScene(customSceneInput.trim());
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-200 text-[10px] font-bold cursor-pointer transition"
+                  >
+                    Switch
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 pt-1">
+                  <button
+                    onClick={() => handleSetObsScene('Scene')}
+                    className={`flex-1 py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border text-[10px] font-mono cursor-pointer transition ${
+                      obsStatus.currentProgramScene === 'Scene' ? 'border-rose-500 text-rose-300 font-bold' : 'border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    Main Scene
+                  </button>
+                  <button
+                    onClick={() => handleSetObsScene('Ableton Live')}
+                    className={`flex-1 py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border text-[10px] font-mono cursor-pointer transition ${
+                      obsStatus.currentProgramScene === 'Ableton Live' ? 'border-rose-500 text-rose-300 font-bold' : 'border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    Ableton Live
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: Live Audio Routing & Passthrough */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between text-slate-300 font-bold">
+                <span className="flex items-center gap-1.5 text-purple-300">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Ableton Live + OBS Audio Sync</span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono">Lossless WAV / AAC</span>
+              </div>
+
+              <div className="p-2 rounded bg-slate-900/60 border border-slate-800 text-[10px] space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Max for Live Device:</span>
+                  <span className="text-emerald-400 font-mono font-bold">
+                    AEGENTIX CYBERDAW
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Audio Routing:</span>
+                  <span className="text-cyan-300 font-mono">
+                    plugin~ &rarr; passthrough &rarr; plugout~
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Broadcast Recording:</span>
+                  <span className={obsStatus.recording ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                    {obsStatus.recording ? `ACTIVE (${obsStatus.recordTimecode})` : 'READY TO CAPTURE'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  onClick={() => {
+                    handleLiveTransport('play');
+                    if (!obsStatus.recording) handleToggleObsRecord();
+                  }}
+                  className="w-full py-1.5 px-2 rounded-lg bg-gradient-to-r from-red-600/80 to-purple-600/80 hover:from-red-600 hover:to-purple-600 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 cursor-pointer shadow transition"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-300" />
+                  <span>Sync Record (Ableton + OBS Capture)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

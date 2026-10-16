@@ -27,6 +27,11 @@ import {
   launchAbleton,
   ABLETON_EXE_PATH
 } from './src/utils/abletonNodeBridge.ts';
+import {
+  getObsStatus,
+  launchObs,
+  callObs
+} from './src/utils/obsStudioBridge.ts';
 
 dotenv.config();
 
@@ -8826,6 +8831,94 @@ app.post('/api/cyberdaw/ableton/inject-agent-stem', async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to inject agent stem: ' + err.message });
+  }
+});
+
+// ============================================
+// OBS STUDIO BROADCAST & RECORDING API
+// ============================================
+
+// GET /api/obs/status: Get real-time status of OBS Studio (Process, WebSocket, Record, Stream, Cam, Stats)
+app.get('/api/obs/status', async (_req, res) => {
+  try {
+    const status = await getObsStatus();
+    res.json({ success: true, status });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to query OBS status: ' + err.message });
+  }
+});
+
+// POST /api/obs/launch: Launch OBS Studio with safe mode disabled
+app.post('/api/obs/launch', async (_req, res) => {
+  try {
+    const result = await launchObs();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to launch OBS Studio: ' + err.message });
+  }
+});
+
+// POST /api/obs/record/toggle: Start or stop OBS recording
+app.post('/api/obs/record/toggle', async (_req, res) => {
+  try {
+    const result = await callObs('ToggleRecord');
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to toggle OBS recording: ' + err.message });
+  }
+});
+
+// POST /api/obs/stream/toggle: Start or stop OBS streaming
+app.post('/api/obs/stream/toggle', async (_req, res) => {
+  try {
+    const result = await callObs('ToggleStream');
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to toggle OBS streaming: ' + err.message });
+  }
+});
+
+// POST /api/obs/virtualcam/toggle: Start or stop OBS virtual camera
+app.post('/api/obs/virtualcam/toggle', async (_req, res) => {
+  try {
+    const result = await callObs('ToggleVirtualCam');
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to toggle virtual camera: ' + err.message });
+  }
+});
+
+// POST /api/obs/replay/save: Save replay buffer clip
+app.post('/api/obs/replay/save', async (_req, res) => {
+  try {
+    const result = await callObs('SaveReplayBuffer');
+    res.json({ success: true, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save replay buffer: ' + err.message });
+  }
+});
+
+// POST /api/obs/scene: Switch current program scene
+app.post('/api/obs/scene', async (req, res) => {
+  try {
+    const { sceneName } = req.body || {};
+    if (!sceneName) return res.status(400).json({ error: 'Missing sceneName' });
+    const result = await callObs('SetCurrentProgramScene', { sceneName });
+    res.json({ success: true, sceneName, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to set OBS scene: ' + err.message });
+  }
+});
+
+// POST /api/obs/call: Execute arbitrary OBS WebSocket v5 command
+app.post('/api/obs/call', async (req, res) => {
+  try {
+    const { requestType, requestData } = req.body || {};
+    if (!requestType) return res.status(400).json({ error: 'Missing requestType' });
+    const result = await callObs(requestType, requestData || {});
+    res.json({ success: true, requestType, result });
+  } catch (err: any) {
+    res.status(500).json({ error: 'OBS call failed: ' + err.message });
   }
 });
 
