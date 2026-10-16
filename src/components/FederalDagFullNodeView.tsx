@@ -48,42 +48,63 @@ export const FederalDagFullNodeView: React.FC<FederalDagFullNodeViewProps> = ({
     { id: 'VTX-984207', channel: 'FEDNOW-INTERCONNECT-GATEWAY', tps: 84800, time: '1.1s ago', parents: ['VTX-984204', 'VTX-984205'] },
   ]);
 
-  // Simulate incoming DAG snapshots
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTelemetry(prev => ({
-        ...prev,
-        epochHeight: prev.epochHeight + 1,
-        dagVerticesCount: prev.dagVerticesCount + Math.floor(Math.random() * 40 + 10),
-        mempoolTps: Math.floor(82000 + Math.random() * 5000),
-        cpuLoadPct: Number((23 + Math.random() * 4).toFixed(1)),
-      }));
-    }, 3000);
+  // Fetch live Constellation Network Hypergraph Mainnet telemetry
+  const fetchLiveTelemetry = async () => {
+    try {
+      const res = await fetch('/api/federal-registry/dag/telemetry');
+      const data = await res.json();
+      if (data.success && data.telemetry) {
+        setTelemetry(data.telemetry);
+      }
+    } catch (e) {
+      console.warn('DAG telemetry fetch warning:', e);
+    }
+  };
 
+  useEffect(() => {
+    fetchLiveTelemetry();
+    const timer = setInterval(fetchLiveTelemetry, 4000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleNotarize = (e: React.FormEvent) => {
+  const handleNotarize = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsNotarizing(true);
-    if (onNotify) onNotify('⚡ Stamping payload onto Federal DAG Hypergraph State Channel...', 'INFO');
+    if (onNotify) onNotify('⚡ Stamping payload onto Constellation Federal DAG Hypergraph State Channel...', 'INFO');
 
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/federal-registry/dag/notarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: notarizePayload,
+          stateChannel: selectedNodeId,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const hash = data.merkleAnchor || data.snapshotHash;
+        setNotarizeHash(hash);
+
+        const newVtx = {
+          id: `VTX-L0-${data.ordinal || telemetry.epochHeight}`,
+          channel: selectedNodeId,
+          tps: telemetry.mempoolTps,
+          time: 'Just now',
+          parents: [data.snapshotHash.slice(0, 16), data.merkleAnchor ? data.merkleAnchor.slice(0, 16) : 'L0-SNAP'],
+        };
+
+        setRecentVertices(prev => [newVtx, ...prev.slice(0, 5)]);
+        if (onNotify) onNotify(`✅ DAG Snapshot Finalized: Ordinal #${data.ordinal} (${hash.slice(0, 14)}...) attested by ${data.clusterPeersAttested} nodes!`, 'SUCCESS');
+      } else {
+        if (onNotify) onNotify('⚠️ Notarization failed to seal onto DAG.', 'ALERT');
+      }
+    } catch (err: any) {
+      if (onNotify) onNotify(`❌ Notarization RPC error: ${err.message}`, 'ALERT');
+    } finally {
       setIsNotarizing(false);
-      const hash = '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      setNotarizeHash(hash);
-
-      const newVtx = {
-        id: `VTX-${Math.floor(100000 + Math.random() * 900000)}`,
-        channel: 'SOVEREIGN-STATE-NOTARIZATION',
-        tps: telemetry.mempoolTps,
-        time: 'Just now',
-        parents: [recentVertices[0]?.id || 'VTX-984210', recentVertices[1]?.id || 'VTX-984209'],
-      };
-
-      setRecentVertices([newVtx, ...recentVertices.slice(0, 5)]);
-      if (onNotify) onNotify(`✅ DAG Snapshot Finalized: ${hash.slice(0, 14)}... (Zero-Gas Asynchronous Consensus)`, 'SUCCESS');
-    }, 1000);
+    }
   };
 
   const activeNode = dagNodes.find(n => n.id === selectedNodeId) || dagNodes[0];

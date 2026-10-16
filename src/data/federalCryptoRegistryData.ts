@@ -19,6 +19,14 @@ export interface FederalRegisteredToken {
   complianceRating: 'FEDERALLY_REGISTERED' | 'QUALIFIED_CUSTODY' | 'SOVEREIGN_RESERVE';
   verifiedAuditDate: string;
   description: string;
+  rpcGateway?: string;
+  fallbackRpcGateway?: string;
+  rpcProtocol?: 'XRPL_JSON_RPC' | 'EVM_JSON_RPC' | 'CONSTELLATION_DAG_RPC';
+  contractAddress?: string;
+  explorerUrl?: string;
+  liveBlockOrLedgerHeight?: number;
+  liveLatencyMs?: number;
+  liveStatus?: 'ONLINE' | 'SYNCHRONIZED' | 'STANDBY';
 }
 
 export interface FederalRegisteredNode {
@@ -57,6 +65,28 @@ export interface DagFullNodeTelemetry {
   nvmeStorageTotalTb: number;
   lastSnapshotHash: string;
   securityIntegrityLevel: 'NIST_SP_800_53_LEVEL_4' | 'CMMC_LEVEL_3_VERIFIED';
+  network?: string;
+  ordinal?: number;
+  snapshotHash?: string;
+  height?: number;
+  subHeight?: number;
+  epochProgress?: number;
+  metagraphSnapshotCount?: number;
+  clusterVersion?: string;
+  clusterSession?: string;
+  clusterHost?: string;
+  peers?: Array<{
+    id: string;
+    ip: string;
+    publicPort: number;
+    p2pPort: number;
+    state: string;
+    clusterSession?: string;
+    session?: string;
+    jar?: string;
+  }>;
+  isLiveMainnet?: boolean;
+  lastSyncAt?: string;
 }
 
 export interface FederalSettlementRecord {
@@ -88,6 +118,11 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'FEDERALLY_REGISTERED',
     verifiedAuditDate: '2026-09-30',
     description: 'Federally regulated, enterprise-grade USD stablecoin authorized by the New York State Department of Financial Services (NYDFS) for cross-border institutional liquidity on XRPL.',
+    rpcGateway: 'https://xrplcluster.com',
+    fallbackRpcGateway: 'https://s1.ripple.com:51234',
+    rpcProtocol: 'XRPL_JSON_RPC',
+    explorerUrl: 'https://livenet.xrpl.org',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-USDC',
@@ -100,11 +135,17 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     reserveCustodian: 'BlackRock & BNY Mellon',
     issuerAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     network: 'Ethereum',
-    totalSupply: '42,500,000,000 USDC',
+    totalSupply: '48,108,675,201 USDC',
     priceUsd: 1.0,
     complianceRating: 'FEDERALLY_REGISTERED',
     verifiedAuditDate: '2026-09-30',
     description: 'Fully reserved US dollar digital currency issued by Circle Internet Financial under nationwide state money transmitter and FinCEN MSB regulatory oversight.',
+    rpcGateway: 'https://ethereum.publicnode.com',
+    fallbackRpcGateway: 'https://1rpc.io/eth',
+    rpcProtocol: 'EVM_JSON_RPC',
+    contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    explorerUrl: 'https://etherscan.io/token/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-XRP',
@@ -122,6 +163,11 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'FEDERALLY_REGISTERED',
     verifiedAuditDate: '2026-09-28',
     description: 'Native cryptographic asset of the XRP Ledger with declared non-security legal status under Federal Southern District Court of New York ruling for secondary market transactions.',
+    rpcGateway: 'https://xrplcluster.com',
+    fallbackRpcGateway: 'https://s2.ripple.com:51234',
+    rpcProtocol: 'XRPL_JSON_RPC',
+    explorerUrl: 'https://livenet.xrpl.org',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-ESC',
@@ -139,6 +185,11 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'SOVEREIGN_RESERVE',
     verifiedAuditDate: '2026-10-01',
     description: 'Sovereign collateral and licensing currency anchored to XRPL Mainnet. Staked in Vault of Trust to collateralize FAA-SOV aviation operations, maritime expeditions, and healthcare networks.',
+    rpcGateway: 'https://xrplcluster.com',
+    fallbackRpcGateway: 'https://l0-lb-mainnet.constellationnetwork.io',
+    rpcProtocol: 'XRPL_JSON_RPC',
+    explorerUrl: 'https://livenet.xrpl.org/accounts/rB2fKokBsnHCoFWLqZ89dqp2VCbVkKoY2k',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-TSL-ESC-EOC',
@@ -156,6 +207,11 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'SOVEREIGN_RESERVE',
     verifiedAuditDate: '2026-10-13',
     description: 'Sovereign Stablecoin on the TSL Sovereign Ledger, pegged 1:1 USD and 105% overcollateralized by Vault of Trust escrow reserves. State-channel transmittances anchored to Constellation Federal DAG Hypergraph prior to issuance. Deployed across FedNow inter-bank corridors and treasury repos generating 11.0% blended APR ($14,997/day real revenue).',
+    rpcGateway: 'https://xrplcluster.com',
+    fallbackRpcGateway: 'https://l0-lb-mainnet.constellationnetwork.io',
+    rpcProtocol: 'XRPL_JSON_RPC',
+    explorerUrl: 'https://livenet.xrpl.org',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-BUIDL',
@@ -173,6 +229,12 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'FEDERALLY_REGISTERED',
     verifiedAuditDate: '2026-09-30',
     description: 'SEC-registered tokenized private liquidity fund paying monthly accrued dividends directly on-chain, managed by BlackRock Financial Management.',
+    rpcGateway: 'https://ethereum.publicnode.com',
+    fallbackRpcGateway: 'https://1rpc.io/eth',
+    rpcProtocol: 'EVM_JSON_RPC',
+    contractAddress: '0x7712c342057371f50C4DF7045A95Ec801d948924',
+    explorerUrl: 'https://etherscan.io/token/0x7712c342057371f50C4DF7045A95Ec801d948924',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-PAXG',
@@ -185,11 +247,17 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     reserveCustodian: 'Brink’s Vaults (London) Audited by WithumSmith+Brown',
     issuerAddress: '0x45804880De22913dAFE09f4980848ECE6EcbAf78',
     network: 'Ethereum',
-    totalSupply: '240,000 PAXG',
+    totalSupply: '437,559 PAXG',
     priceUsd: 2684.5,
     complianceRating: 'QUALIFIED_CUSTODY',
     verifiedAuditDate: '2026-09-25',
     description: 'Federally regulated physical gold token where each digital token represents one fine troy ounce of serial-numbered gold bullion stored in London vaults.',
+    rpcGateway: 'https://ethereum.publicnode.com',
+    fallbackRpcGateway: 'https://1rpc.io/eth',
+    rpcProtocol: 'EVM_JSON_RPC',
+    contractAddress: '0x45804880De22913dAFE09f4980848ECE6EcbAf78',
+    explorerUrl: 'https://etherscan.io/token/0x45804880De22913dAFE09f4980848ECE6EcbAf78',
+    liveStatus: 'ONLINE',
   },
   {
     id: 'TOK-DAG',
@@ -207,6 +275,11 @@ export const FEDERAL_TOKENS: FederalRegisteredToken[] = [
     complianceRating: 'FEDERALLY_REGISTERED',
     verifiedAuditDate: '2026-10-01',
     description: 'Federal blockless Directed Acyclic Graph token utilized by the U.S. Air Force Space Command and Department of Defense for mission-critical asynchronous data assurance and cross-agency micro-consensus.',
+    rpcGateway: 'https://l0-lb-mainnet.constellationnetwork.io',
+    fallbackRpcGateway: 'https://be-mainnet.constellationnetwork.io',
+    rpcProtocol: 'CONSTELLATION_DAG_RPC',
+    explorerUrl: 'https://mainnet.dagexplorer.io',
+    liveStatus: 'ONLINE',
   },
 ];
 
